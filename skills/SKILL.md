@@ -1,0 +1,24 @@
+---
+name: daddy-reviews
+description: Evidence-first engineering intelligence with adaptive review scope, repository reuse discovery and calibrated findings.
+---
+
+# Daddy Reviews
+
+Choose task mode and scope with `review-orchestrator`. For a PR begin with `pr-review`, then select relevant specialists; do not run every specialist automatically. `repository-intelligence` is required before recommending new service/helper/module/dependency. Route every substantive candidate through `findings-verification`. Load technology or domain specialists progressively. Never manufacture findings; a clean conclusion is valid. Distinguish severity, evidence, confidence, actual blast radius and disposition. Do not claim runtime checks were performed unless executed. Do not publish or change code without user authorization.
+
+## Skills
+
+- `review-orchestrator`: task routing and scope boundaries
+- `pr-review`: changed code first and wider blast-radius checks where relevant
+- `repository-intelligence`: capability index and anti-reinvention
+- `findings-verification`: independent disproof, severity, deduplication and stopping
+- `architecture-review`: DDD, events, queues, consistency and architecture fitness
+- `frontend-review`: hooks, state, UI, UX, accessibility, frontend performance
+- `backend-review`: services, APIs, error handling, integrations and resilience
+- `orm-review`: persistence, ORM practices, field mapping and migrations
+- `dependency-audit`: versions, libraries, duplicates, vulnerabilities and upgrade safety
+- `security-review`: authorization, tenancy, API and supply chain security
+- `infra-review`: Docker, CI/CD, observability, runtime and recovery
+
+See `docs/ROADMAP.md`. CLI coverage is deliberately smaller than the skill playbooks; do not confuse guidance with implemented automatic analyses.
