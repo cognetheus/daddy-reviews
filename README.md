@@ -4,7 +4,7 @@
 
 ![CI](https://github.com/cognetheus/daddy-reviews/actions/workflows/ci.yml/badge.svg)
 
-v0.2.1 now includes a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
+v0.3.0 now includes a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
 
 ## Install and test
 
@@ -25,6 +25,7 @@ daddy-reviews review --root . --diff-file /tmp/change.patch
 # Earlier commands remain available
 daddy-reviews plan --task 'Review PR' --changed src/auth/tenant.py
 daddy-reviews inventory --root .
+daddy-reviews stack --root .
 daddy-reviews audit --root . --changed src/daddy_reviews/core.py
 \`\`\`
 

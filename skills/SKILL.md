@@ -19,6 +19,7 @@ Choose task mode and scope with `review-orchestrator`. For a PR begin with `pr-r
 - `orm-review`: persistence, ORM practices, field mapping and migrations
 - `dependency-audit`: versions, libraries, duplicates, vulnerabilities and upgrade safety
 - `security-review`: authorization, tenancy, API and supply chain security
+- `standards-engine`: detect manifest-declared stack, load version-aware TS/Python/.NET/Java and ORM references (not automatically confirmed installed versions)
 - `infra-review`: Docker, CI/CD, observability, runtime and recovery
 
 See `docs/ROADMAP.md`. CLI coverage is deliberately smaller than the skill playbooks; do not confuse guidance with implemented automatic analyses.

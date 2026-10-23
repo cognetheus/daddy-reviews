@@ -7,6 +7,7 @@ from .diff import FileDiff,parse_diff
 from .impact import changed_python_symbols, possible_consumers, test_candidates, exact_python_body_candidates
 from .inspect import investigate_python
 from .references import import_call_candidates
+from .stack import scan_stack
 
 
 def review_patch(root: Path, patch: str, task: str='Review pull request') -> dict:
@@ -26,8 +27,8 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
             candidates.append(f)
     findings=[x.to_dict() for x in deduplicate(candidates)]
     return {
-        'report_version':'0.2.1', 'scope':'local_diff_plus_bounded_repository_context',
-        'plan':asdict(plan), 'files':[c.as_dict() for c in changes],
+        'report_version':'0.3.0', 'scope':'local_diff_plus_bounded_repository_context',
+        'plan':asdict(plan), 'stack':scan_stack(root), 'files':[c.as_dict() for c in changes],
         'changed_python_symbols':[asdict(s) for s in symbols],
         'possible_consumers':refs, 'import_linked_calls':direct_calls, 'existing_test_candidates':tests,
         'reuse_candidates':reuse, 'findings':findings,
