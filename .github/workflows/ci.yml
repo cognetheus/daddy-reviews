@@ -21,3 +21,5 @@ jobs:
       - run: python -m daddy_reviews.cli plan --task 'Review PR' --changed src/auth/tenant.py
       - run: python -m daddy_reviews.cli review --root . --base HEAD~1 --head HEAD
       - run: python -m daddy_reviews.cli evaluate --dataset evals/baseline.json
+      - run: python -m daddy_reviews.cli graph --root . --changed src/daddy_reviews/graph.py > /dev/null
+      - run: python -m daddy_reviews.cli capabilities --root . --query review > /dev/null

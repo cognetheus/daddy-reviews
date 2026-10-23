@@ -34,3 +34,9 @@ Stop when the relevant behavior, contracts, and callers have been examined and a
 ## Output format
 
 Provide: scope reviewed; relevant installed versions and standards; verification performed and not performed; findings separated by verified status and PR attribution; exact references and underlying root cause; existing reuse opportunities; prioritized remedial actions and tests; conclusion including clean outcome if appropriate. State the evidence necessary to upgrade an uncertain candidate into a confirmed issue.
+
+## Executable graph and capability discovery (v0.6.0)
+
+Run `daddy-reviews graph --root . --changed PATH --max-depth 3` before evaluating import blast radius. Inspect `direct_consumers`, `transitive_consumers`, and each `via` path. If a high-impact contract crosses a missing dynamic, generated, or compiler-managed boundary, expand manually instead of assuming isolation. Run `daddy-reviews capabilities --root . --query 'business operation'` to find initial Python/JS/TS symbol candidates, then inspect inputs/outputs, side effects, transaction boundaries, actual consumers, and domain ownership before proposing reuse.
+
+**Never** label import cycles, similarity hits, or transitive import paths automatically as bugs, blocked PRs, or redundant implementation. `graph` supports explicit JSON export via shell redirection; a saved snapshot is not authenticated to a commit unless the caller pins/verifies that revision. Boundaries: 4,000 files, 350 KB/file, 24 MB total indexed source, depth cap 8; report truncation rather than creating false completeness claims. See `docs/GRAPH.md`.

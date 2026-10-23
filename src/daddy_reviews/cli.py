@@ -11,11 +11,13 @@ from .stack import scan_stack
 from .contracts import ContractError, compare_openapi, read_contract
 from .verify import EvidenceError, read_report, replay_evidence
 from .evaluate import EvaluationError, read_dataset, evaluate_dataset
+from .graph import build_graph, impact, import_cycles
+from .catalog import catalog, find_capabilities
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--task',default='Review pull request')
     parser.add_argument('--changed',nargs='*',default=[])
@@ -26,6 +28,8 @@ def main(argv=None):
     parser.add_argument('--head-contract',help='OpenAPI JSON snapshot after change')
     parser.add_argument('--report-file',help='Existing JSON candidate review report to re-check')
     parser.add_argument('--dataset',default='evals/baseline.json',help='JSON fixtures for syntax candidate evaluation')
+    parser.add_argument('--query',help='Capability name or related terms')
+    parser.add_argument('--max-depth',type=int,default=3,help='Maximum reverse dependency hops')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -48,6 +52,14 @@ def main(argv=None):
             data=replay_evidence(root,read_report(Path(args.report_file)))
         except (EvidenceError,OSError) as exc:
             parser.error(str(exc))
+    elif args.command=='graph':
+        graph=build_graph(root)
+        data={'graph':graph,'cycles':import_cycles(graph),
+              'impact':impact(graph,args.changed,max_depth=args.max_depth) if args.changed else None}
+    elif args.command=='capabilities':
+        graph=build_graph(root)
+        listing=catalog(root,graph)
+        data={'catalog':listing,'search':find_capabilities(listing,args.query) if args.query else None}
     elif args.command=='contracts':
         if not args.base_contract or not args.head_contract:
             parser.error('contracts needs both --base-contract and --head-contract')

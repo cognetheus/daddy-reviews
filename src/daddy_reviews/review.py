@@ -9,6 +9,7 @@ from .inspect import investigate_python
 from .references import import_call_candidates
 from .stack import scan_stack
 from .js_graph import js_changed_symbols, js_import_call_candidates
+from .graph import build_graph, impact, import_cycles
 
 
 def review_patch(root: Path, patch: str, task: str='Review pull request') -> dict:
@@ -23,6 +24,9 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
     direct_calls=import_call_candidates(root,symbols)
     tests=test_candidates(root,changes)
     reuse=exact_python_body_candidates(root,symbols)
+    module_graph=build_graph(root)
+    dependency_impact=impact(module_graph, paths, max_depth=3, max_consumers=100)
+    changed_cycles=[cycle for cycle in import_cycles(module_graph) if any(path in paths for path in cycle)]
     changed_lines={c.new_path:set(c.added_lines) for c in changes if c.new_path}
     candidates=[]
     for f in investigate_python(root,set(changed_lines)):
@@ -30,13 +34,15 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
             candidates.append(f)
     findings=[x.to_dict() for x in deduplicate(candidates)]
     return {
-        'report_version':'0.4.0', 'scope':'local_diff_plus_bounded_repository_context',
+        'report_version':'0.6.0', 'scope':'local_diff_plus_bounded_repository_context',
         'plan':asdict(plan), 'stack':scan_stack(root), 'files':[c.as_dict() for c in changes],
         'changed_python_symbols':[asdict(s) for s in symbols],
         'changed_js_ts_symbols':[asdict(s) for s in js_symbols],
         'js_ts_import_linked_calls':js_calls,
         'possible_consumers':refs, 'import_linked_calls':direct_calls, 'existing_test_candidates':tests,
-        'reuse_candidates':reuse, 'findings':findings,
+        'reuse_candidates':reuse, 'module_dependency_impact':dependency_impact,
+        'changed_module_cycle_candidates':changed_cycles, 'graph_warnings':module_graph['warnings'],
+        'findings':findings,
         'disposition':'no_verified_blockers' if not any(f['disposition']=='block' for f in findings) else 'requires_attention',
         'limitations':[
           'No automatic functional or architectural correctness guarantee.',
@@ -44,6 +50,7 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
           'AST-identical function bodies do not prove redundant responsibilities.',
           'A lack of findings is not approval or proof of defect-free code.',
           'Python uses AST; JS/TS uses partial lexical import heuristics, not TypeScript compiler resolution. .NET/Java symbol analyzers remain future adapters.',
-          'Diffs from --diff-file are not authenticated to local repository state.'
+          'Diffs from --diff-file are not authenticated to local repository state.',
+          'Module graph edges and cycles are static import candidates; no runtime or symbol-call reachability is guaranteed.'
         ]
     }

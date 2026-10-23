@@ -31,3 +31,7 @@ See `docs/ROADMAP.md`. CLI coverage is deliberately smaller than the skill playb
 ## Calibration regression fixtures (v0.5.0)
 
 Use `daddy-reviews evaluate --dataset evals/baseline.json` to test deterministic rule candidate behavior. The CLI measures syntax candidate accuracy against handcrafted labels and clean-fixture false-alarm rate; it does **not** establish correctness of actual bug detection, severity, or architecture decisions. Any new reviewer rule must add clean and positive fixtures and be checked for impact on false positives before promotion.
+
+## Module graph (v0.6.0)
+
+`daddy-reviews graph` and `daddy-reviews capabilities` provide bounded, read-only static candidate indexes to guide repository-wide reuse and blast-radius investigation. Review packets include direct/transitive module impact, but import edges are not validated runtime calls. Use evidence verification and domain context before any consequential conclusion.

@@ -74,3 +74,16 @@ Run `daddy-reviews verify --root . --report-file review.json` to recheck support
 ## v0.5.0 — review calibration regression fixtures
 
 `daddy-reviews evaluate --dataset evals/baseline.json` executes isolated read-only source fixtures. Metrics include syntax-*candidate* precision and recall, clean-case false-alarm rate, and count of unjustified blocking dispositions. **These are not software-defect detection accuracy metrics.** The baseline contains normal cases, a changed exception handler, a pre-existing exception handler unrelated to the diff, and a sensitive filename requiring deeper inspection but not automatic critical severity. Human-labeled real defect corpora, severity calibration and semantic verification remain future work.
+
+## v0.6.0 — bounded dependency graph and capability catalog
+
+The read-only `graph` CLI now indexes local Python and JS/TS module imports, provides direct/transitive reverse dependency paths, records source SHA-256, and identifies import-cycle candidates. The `capabilities` CLI searches Python functions/classes/methods and selected JS/TS exports by name/path tokens. A lexical match **never** proves functionality should be reused or classes merged.
+
+```bash
+daddy-reviews graph --root . --changed src/domain/orders.py --max-depth 3
+daddy-reviews graph --root . > graph.json
+daddy-reviews capabilities --root . --query 'send notification'
+daddy-reviews review --root . --base main --head HEAD
+```
+
+PR packets include bounded module-level impact and changed-module import-cycle candidates. Imported modules are **not a verified symbol-call graph**, and unresolved/ambiguous imports, aliases, dynamic behavior, or build-time resolution can create missing edges. No review severity is assigned by the graph. See [graph design and limitations](docs/GRAPH.md).
