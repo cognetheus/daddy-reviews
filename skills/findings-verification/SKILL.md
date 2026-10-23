@@ -34,3 +34,7 @@ Stop when the relevant behavior, contracts, and callers have been examined and a
 ## Output format
 
 Provide: scope reviewed; relevant installed versions and standards; verification performed and not performed; findings separated by verified status and PR attribution; exact references and underlying root cause; existing reuse opportunities; prioritized remedial actions and tests; conclusion including clean outcome if appropriate. State the evidence necessary to upgrade an uncertain candidate into a confirmed issue.
+
+## Executable verification available in v0.4.1
+
+`daddy-reviews verify --root . --report-file report.json` can replay the narrow `PY-SILENT-EXCEPT` pattern with workspace-contained path checks. Output states only whether that syntax pattern still exists. It does not prove defect impact, reachability, exploitability, or severity. The full independent adversarial investigation remains an agent/human workflow at this stage; all other rule IDs are marked unsupported by the replay engine.

@@ -52,3 +52,7 @@ CLI review
 - `js_graph.py` discovers changed JS/TS declarations and calls through direct relative named/namespace imports. It masks comments/strings and uses workspace-contained paths; still only syntactic, not language-service resolution.
 - `contracts.py` provides independent OpenAPI 3.x JSON snapshot comparison; emits candidates without severity or runtime assertions.
 - Neither extension can establish business-level semantic equivalence, operational correctness, or complete end-to-end data lineage.
+
+## v0.4.1 — evidence replay gate
+
+`verify.py` replays narrow deterministic findings against current local files and records their source hashes. It deliberately does not upgrade report claims to confirmed impact or severity, and cannot act on unsupported patterns. Do not treat this as independent validation of system behavior.

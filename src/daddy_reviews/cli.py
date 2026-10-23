@@ -9,11 +9,12 @@ from .inspect import inventory, investigate_python
 from .review import review_patch
 from .stack import scan_stack
 from .contracts import ContractError, compare_openapi, read_contract
+from .verify import EvidenceError, read_report, replay_evidence
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--task',default='Review pull request')
     parser.add_argument('--changed',nargs='*',default=[])
@@ -22,6 +23,7 @@ def main(argv=None):
     parser.add_argument('--diff-file',help='Read an existing unified patch instead of invoking git')
     parser.add_argument('--base-contract',help='OpenAPI JSON snapshot before change')
     parser.add_argument('--head-contract',help='OpenAPI JSON snapshot after change')
+    parser.add_argument('--report-file',help='Existing JSON candidate review report to re-check')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -32,6 +34,13 @@ def main(argv=None):
         data=inventory(root)
     elif args.command=='stack':
         data=scan_stack(root)
+    elif args.command=='verify':
+        if not args.report_file:
+            parser.error('verify requires --report-file')
+        try:
+            data=replay_evidence(root,read_report(Path(args.report_file)))
+        except (EvidenceError,OSError) as exc:
+            parser.error(str(exc))
     elif args.command=='contracts':
         if not args.base_contract or not args.head_contract:
             parser.error('contracts needs both --base-contract and --head-contract')
