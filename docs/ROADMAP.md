@@ -49,3 +49,8 @@ Added bounded JSONC-aware local `tsconfig.json`/`jsconfig.json` `paths` and `bas
 ### Phase 2 snapshot comparison increment (v0.8.0)
 
 Added bounded read-only graph snapshot comparison, source-hash and import-edge deltas, and before/after reverse consumer candidates. Snapshots must be captured explicitly from the intended revisions; no Git commit identity is claimed. Also fixed Python multi-member from-import indexing. Remaining: **actual** incremental persistent indexing/cache, compiler/SCIP symbol adapters, cross-layer contract tracing, and independently verified call reachability.
+
+
+### Phase 2 persistent graph-cache increment (v0.9.0)
+
+Added opt-in, validated, source-hash-based persistent module-graph reuse for `graph` and `capabilities`. Unchanged trees avoid graph parsing; source additions/removals/edits and tsconfig/jsconfig changes invalidate the entire graph. No cache is used on incomplete scans, concurrent source mutations, or invalid snapshots. This is **whole-tree cache invalidation**, not incremental per-file indexing. Next: per-file parse artifacts and dependency-aware invalidation, native compiler/SCIP adapters, and verified symbol references.

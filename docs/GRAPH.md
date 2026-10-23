@@ -67,3 +67,10 @@ daddy-reviews graph-diff --before-graph before.json --after-graph after.json --m
 ```
 
 The report distinguishes added, removed, and source-hash-modified modules; import-edge changes (identity: source, target, kind; line movement alone ignored); and bounded before/after reverse-import candidates. Configuration-only changes can alter alias edges without modifying indexed source files. Invalid or oversized snapshots fail closed. File changes are based on source hashes **only**; there is no proof the snapshots belong to a specific commit, no incremental parser, no verified runtime call graph, and no semantic defect inference. Warnings and output truncation are explicit.
+
+
+## Opt-in persistent cache (v0.9.0)
+
+`daddy-reviews graph --root . --cache-file /tmp/daddy-graph-cache.json` stores a schema-validated graph snapshot in a user-chosen local JSON file. A cache hit requires a fresh SHA-256 fingerprint of every indexed source file and every tsconfig/jsconfig file under the scan root, plus root identity and Python interpreter version. Changes to file paths, file contents, or alias configurations force a full rebuild. Graph warnings, indexing-budget exhaustion, and source changes during the build prevent cache persistence. Corrupt or oversized snapshots are ignored and rebuilt. Cache destinations must be non-symlink `.json` paths in existing directories, excluding tsconfig/jsconfig filenames.
+
+**Performance boundary:** cache hits skip Python AST/JS lexical import parsing, but still enumerate and hash source/config files. A single edit triggers a full rebuild, not incremental per-file parsing. Cache snapshots are not authenticated to Git commits, cannot prove runtime calls, and must not be used as evidence of repository provenance. Cache writes occur **only** with `--cache-file`; ordinary graph, capability, review and diff commands remain read-only. Prefer cache locations outside the repository.

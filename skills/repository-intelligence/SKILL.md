@@ -48,3 +48,8 @@ Module graph alias edges tagged `js_tsconfig_alias_*` reflect explicit local `pa
 ## Historical graph delta (v0.8.0)
 
 Capture `daddy-reviews graph --root REVISION_WORKTREE > graph.json` separately for each revision and compare using `daddy-reviews graph-diff --before-graph BEFORE --after-graph AFTER`. Treat modified SHA-256 files, import-edge changes, and new/lost reverse consumer candidates as investigation leads only. Never infer commit provenance, actual runtime reachability, a regression, or a blocker from a snapshot delta. Graph-diff is read-only and is **not** an incremental cache; source must be rescanned for each snapshot.
+
+
+## Cache-assisted graph inspection (v0.9.0)
+
+For repeated inspections of an unchanged working tree, an explicitly requested local cache can avoid reparsing: `daddy-reviews graph --root . --cache-file /tmp/daddy-graph-cache.json`. Inspect the returned `cache.status`; `bypassed`, `volatile`, and `write_failed` are not cache hits. This is **whole-tree invalidation**: changed source/config always triggers a complete rebuild. Do not use cache presence, source hashes, or static edges as proof of Git revision authenticity, functional equivalence, or runtime reachability. Do not write caches unless the user/workflow permits local file writes.

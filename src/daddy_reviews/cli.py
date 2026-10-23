@@ -14,6 +14,7 @@ from .evaluate import EvaluationError, read_dataset, evaluate_dataset
 from .graph import build_graph, impact, import_cycles
 from .catalog import catalog, find_capabilities
 from .graph_delta import GraphSnapshotError, compare_snapshots, read_snapshot
+from .graph_cache import GraphCacheError, graph_with_cache
 
 
 def main(argv=None):
@@ -33,10 +34,13 @@ def main(argv=None):
     parser.add_argument('--max-depth',type=int,default=3,help='Maximum reverse dependency hops')
     parser.add_argument('--before-graph',help='Previously exported graph JSON snapshot')
     parser.add_argument('--after-graph',help='Later exported graph JSON snapshot')
+    parser.add_argument('--cache-file',help='Opt-in persistent .json graph cache for graph/capabilities; writes this file')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
         parser.error(f'Not a directory: {root}')
+    if args.cache_file and args.command not in ('graph','capabilities'):
+        parser.error('--cache-file is only supported by graph and capabilities')
     if args.command=='plan':
         data=asdict(plan_review(args.task,args.changed))
     elif args.command=='inventory':
@@ -56,9 +60,15 @@ def main(argv=None):
         except (EvidenceError,OSError) as exc:
             parser.error(str(exc))
     elif args.command=='graph':
-        graph=build_graph(root)
+        try:
+            graph, cache_info = (graph_with_cache(root,Path(args.cache_file)) if args.cache_file
+                                 else (build_graph(root),None))
+        except GraphCacheError as exc:
+            parser.error(str(exc))
         data={'graph':graph,'cycles':import_cycles(graph),
               'impact':impact(graph,args.changed,max_depth=args.max_depth) if args.changed else None}
+        if cache_info is not None:
+            data['cache']=cache_info
     elif args.command=='graph-diff':
         if not args.before_graph or not args.after_graph:
             parser.error('graph-diff requires --before-graph and --after-graph')
@@ -68,9 +78,15 @@ def main(argv=None):
         except GraphSnapshotError as exc:
             parser.error(str(exc))
     elif args.command=='capabilities':
-        graph=build_graph(root)
+        try:
+            graph, cache_info = (graph_with_cache(root,Path(args.cache_file)) if args.cache_file
+                                 else (build_graph(root),None))
+        except GraphCacheError as exc:
+            parser.error(str(exc))
         listing=catalog(root,graph)
         data={'catalog':listing,'search':find_capabilities(listing,args.query) if args.query else None}
+        if cache_info is not None:
+            data['cache']=cache_info
     elif args.command=='contracts':
         if not args.base_contract or not args.head_contract:
             parser.error('contracts needs both --base-contract and --head-contract')

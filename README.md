@@ -4,7 +4,7 @@
 
 ![CI](https://github.com/cognetheus/daddy-reviews/actions/workflows/ci.yml/badge.svg)
 
-v0.8.0 includes a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
+v0.9.0 includes a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
 
 ## Install and test
 
@@ -29,7 +29,7 @@ daddy-reviews stack --root .
 daddy-reviews audit --root . --changed src/daddy_reviews/core.py
 \`\`\`
 
-Every command is read-only, returns JSON, and performs no GitHub posting or repository writes. An evidence packet contains changed hunks/line numbers, initial risk routing, Python changed symbols, textual possible references and Python import-linked call candidates, potential structurally duplicated Python function bodies, matching test-file paths, and preliminary swallowed-exception candidates restricted to changed lines.
+Commands return JSON and perform no GitHub posting. By default they are read-only; **only an explicitly provided `--cache-file`** writes a local graph-cache JSON file. An evidence packet contains changed hunks/line numbers, initial risk routing, Python changed symbols, textual possible references and Python import-linked call candidates, potential structurally duplicated Python function bodies, matching test-file paths, and preliminary swallowed-exception candidates restricted to changed lines.
 
 **Evidence limitations matter:** textual matches are not an accurate call graph; function-body similarity does not justify automatic consolidation; a test filename is not verified test coverage; a zero-finding result is not a merge approval. All heuristic findings remain unverified until confirmed using appropriate code/context/runtime evidence.
 
@@ -108,3 +108,16 @@ daddy-reviews graph-diff --before-graph before-graph.json --after-graph after-gr
 ```
 
 The new graph-diff reader validates snapshot format, SHA-256, paths, edge endpoints, duplicates, and size budgets; line-only movement does not count as an import-edge change. Changed TypeScript alias resolution may produce an edge delta even when indexed source hashes are unchanged. Python `from pkg import a, b` now indexes multiple resolvable submodule targets rather than only the first. No commit provenance is inferred from a snapshot, and this is **not** an incremental parser/cache or verified runtime call graph. See [graph documentation](docs/GRAPH.md).
+
+
+## v0.9.0 — opt-in persistent graph cache (whole-tree invalidation)
+
+Graph and capability commands now support an **explicit** persistent cache file. Unchanged source/configuration fingerprints reuse a validated module graph without re-parsing imports. The cache is a local performance optimization; it is **not incremental per-file parsing**. Any source or tsconfig/jsconfig change rebuilds the whole graph.
+
+```bash
+daddy-reviews graph --root . --cache-file /tmp/daddy-graph-cache.json --changed src/domain/orders.py
+daddy-reviews graph --root . --cache-file /tmp/daddy-graph-cache.json
+daddy-reviews capabilities --root . --cache-file /tmp/daddy-graph-cache.json --query 'notification'
+```
+
+Output includes `cache.status`: `stored`, `hit`, `bypassed`, `volatile`, or `write_failed`. Source and config files are hashed on every invocation; no source is executed. Cache entries are schema-validated and reject symlink destinations. Cache writes are atomic. Incomplete scans or a changing repository disable persistence. Keep the cache outside the repository (or gitignore it); it is not a trusted Git revision identity. The default commands do not write files. See [graph documentation](docs/GRAPH.md).

@@ -26,3 +26,7 @@ jobs:
       - run: |
           python -m daddy_reviews.cli graph --root . > /tmp/daddy-reviews-graph.json
           python -m daddy_reviews.cli graph-diff --before-graph /tmp/daddy-reviews-graph.json --after-graph /tmp/daddy-reviews-graph.json > /dev/null
+      - run: |
+          python -m daddy_reviews.cli graph --root . --cache-file /tmp/daddy-reviews-cache.json > /dev/null
+          python -m daddy_reviews.cli graph --root . --cache-file /tmp/daddy-reviews-cache.json > /dev/null
+          python -m daddy_reviews.cli capabilities --root . --cache-file /tmp/daddy-reviews-cache.json --query review > /dev/null
