@@ -33,4 +33,4 @@ new file mode 100644
         report=review_patch(root,patch)
         assert report['module_dependency_impact']['direct_consumers'][0]['path']=='caller.py'
         assert report['findings']==[]
-        assert report['report_version']=='0.6.0'
+        assert report['report_version']=='0.7.0'

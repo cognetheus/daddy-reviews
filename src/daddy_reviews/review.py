@@ -34,7 +34,7 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
             candidates.append(f)
     findings=[x.to_dict() for x in deduplicate(candidates)]
     return {
-        'report_version':'0.6.0', 'scope':'local_diff_plus_bounded_repository_context',
+        'report_version':'0.7.0', 'scope':'local_diff_plus_bounded_repository_context',
         'plan':asdict(plan), 'stack':scan_stack(root), 'files':[c.as_dict() for c in changes],
         'changed_python_symbols':[asdict(s) for s in symbols],
         'changed_js_ts_symbols':[asdict(s) for s in js_symbols],
@@ -51,6 +51,7 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
           'A lack of findings is not approval or proof of defect-free code.',
           'Python uses AST; JS/TS uses partial lexical import heuristics, not TypeScript compiler resolution. .NET/Java symbol analyzers remain future adapters.',
           'Diffs from --diff-file are not authenticated to local repository state.',
-          'Module graph edges and cycles are static import candidates; no runtime or symbol-call reachability is guaranteed.'
+          'Module graph edges and cycles are static import candidates; no runtime or symbol-call reachability is guaranteed.',
+          'Standalone tsconfig/jsconfig alias paths are candidates only; inherited config, package exports and compiler module resolution remain unsupported.'
         ]
     }

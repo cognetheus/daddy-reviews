@@ -49,3 +49,9 @@ Review confidence and severity are independent of graph depth. A variable rename
 ## Regression requirements
 
 Test positive edges, transitive consumers, relative Python imports, TS re-export chains, JS require, cycle handling, comment-only false positives, path ambiguity abstention, source budget exhaustion, capability search, and zero-finding PR behavior. Do not claim tests are executed or real defects detected when only these deterministic candidates are indexed.
+
+## v0.7.0: local tsconfig/jsconfig alias candidates
+
+Non-relative JS/TS imports may now resolve to indexed local files when a nearest standalone `tsconfig.json` or `jsconfig.json` declares `compilerOptions.paths` or `baseUrl`. Exact aliases, single-star aliases, JSONC comments/trailing commas, and bounded target lists are supported. The resolver never executes TypeScript, Node, package scripts, or repository code.
+
+The resolver **abstains** on config inheritance (`extends`), project references, invalid/oversized/symlinked config, ambiguous indexed targets, unsupported wildcard patterns, or targets outside the repository. Config warnings appear in the graph and review packet. It cannot determine whether the importing file is included in the tsconfig project, nor honor Node/package export maps, condition selection, bundler aliases, or compiler module resolution modes. A positive edge is a **configuration-based candidate**, not proof of a compiled import or reachable call. The existing direct JS/TS symbol-call heuristic remains relative-import-only.

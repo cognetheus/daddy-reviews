@@ -87,3 +87,9 @@ daddy-reviews review --root . --base main --head HEAD
 ```
 
 PR packets include bounded module-level impact and changed-module import-cycle candidates. Imported modules are **not a verified symbol-call graph**, and unresolved/ambiguous imports, aliases, dynamic behavior, or build-time resolution can create missing edges. No review severity is assigned by the graph. See [graph design and limitations](docs/GRAPH.md).
+
+## v0.7.0 — conservative TypeScript/JavaScript alias edges
+
+The module graph now recognizes **local `tsconfig.json` / `jsconfig.json` `compilerOptions.paths` and `baseUrl` mappings**, including one-star aliases, JSONC comments/trailing commas, and nearest-config selection in a monorepo. Resolved edges are labeled `js_tsconfig_alias_*`, so they can be distinguished from ordinary relative imports. Alias results participate in reverse dependency impact analysis and PR evidence packets.
+
+This is **not compiler-aware symbol resolution**. Config `extends` and project references cause explicit abstention/warnings; multiple possible indexed targets are not guessed. Package exports, module-resolution modes, project inclusion, inherited aliases, and actual runtime calls remain unverified. See [graph design](docs/GRAPH.md).

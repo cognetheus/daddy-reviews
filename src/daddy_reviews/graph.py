@@ -15,6 +15,7 @@ from typing import Any
 
 from .js_graph import EXTENSIONS, _mask_noncode, _resolve_module
 from .inspect import EXCLUDE
+from .tsconfig import TsconfigResolver
 
 MAX_FILES = 4000
 MAX_BYTES_PER_FILE = 350_000
@@ -94,6 +95,7 @@ def build_graph(root: Path) -> dict[str, Any]:
         if file.suffix == PYTHON:
             for alias in _python_names(rel):
                 pyindex.setdefault(alias, set()).add(rel)
+    tsresolver = TsconfigResolver(root, {file.relative_to(root).as_posix() for file in files if file.suffix in EXTENSIONS})
     nodes: list[dict] = []
     edges: list[dict] = []
     edge_keys: set[tuple] = set()
@@ -142,20 +144,27 @@ def build_graph(root: Path) -> dict[str, Any]:
                 location = found.start()
                 if not re.match(r'\s*(?:import|export)\b', masked[location:location+16]):
                     continue
-                target = _resolve_module(root, rel, found.group(1))
+                specifier = found.group(1)
+                relative = specifier.startswith(('./', '../'))
+                target = _resolve_module(root, rel, specifier) if relative else tsresolver.resolve(rel, specifier)
                 if target:
-                    edge(rel, target, 'js_static_import_or_export', source.count('\n', 0, location) + 1)
+                    kind = 'js_static_import_or_export' if relative else 'js_tsconfig_alias_import_or_export'
+                    edge(rel, target, kind, source.count('\n', 0, location) + 1)
             for found in JS_REQUIRE.finditer(source):
                 location = found.start()
                 if not re.match(r'(?:require|import)\s*\(', masked[location:location+20]):
                     continue
-                target = _resolve_module(root, rel, found.group(2))
+                specifier = found.group(2)
+                relative = specifier.startswith(('./', '../'))
+                target = _resolve_module(root, rel, specifier) if relative else tsresolver.resolve(rel, specifier)
                 if target:
-                    edge(rel, target, 'js_literal_' + found.group(1), source.count('\n', 0, location) + 1)
+                    kind = 'js_literal_' + found.group(1) if relative else 'js_tsconfig_alias_literal_' + found.group(1)
+                    edge(rel, target, kind, source.count('\n', 0, location) + 1)
+    warnings.extend(tsresolver.warnings)
     return {'format': 'daddy-reviews-module-graph-v1', 'nodes': sorted(nodes, key=lambda n: n['path']),
             'edges': sorted(edges, key=lambda e: (e['source'], e['target'], e['line'], e['kind'])),
             'warnings': warnings, 'limitations': [
-                'Imports are syntactic candidates; reexports, Python shadowing, TS path aliases and runtime imports may be unresolved.',
+                'Imports are syntactic candidates; Python shadowing, TS config inheritance, package exports and runtime imports may be unresolved.',
                 'Edges model source imports, not verified calls, actual side effects, runtime reachability or business impact.',
                 'Python ambiguous module names are intentionally not resolved. Missing edges do not prove isolation.',
             ]}

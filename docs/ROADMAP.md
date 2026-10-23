@@ -41,3 +41,7 @@ Deterministic candidate regression tests now use JSON-labelled fixtures, isolate
 ### Phase 2 initial delivery (v0.6.0)
 
 Shipped deterministic Python/JS/TS import-graph reconnaissance, bounded reverse impact, import-cycle candidates, source hashes, queryable lexical capability discovery, and PR packet integration. Still needed: TS compiler/SCIP/LSP resolution, incremental per-commit persistent indexing, semantic equivalence evaluation, downstream API/DTO/ORM mapping, external dependency edges, full monorepo alias resolution, and runtime reachability checks.
+
+### Phase 2 alias-resolution increment (v0.7.0)
+
+Added bounded JSONC-aware local `tsconfig.json`/`jsconfig.json` `paths` and `baseUrl` candidates to module dependency impact. Nearest standalone configs are recognized; inherited configs, project references and ambiguous target mappings abstain with warnings. Next: native compiler/SCIP adapters, persisted incremental graph snapshots, contract-level tracing, and human-verified symbol references.

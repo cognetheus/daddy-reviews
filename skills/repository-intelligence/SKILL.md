@@ -40,3 +40,7 @@ Provide: scope reviewed; relevant installed versions and standards; verification
 Run `daddy-reviews graph --root . --changed PATH --max-depth 3` before evaluating import blast radius. Inspect `direct_consumers`, `transitive_consumers`, and each `via` path. If a high-impact contract crosses a missing dynamic, generated, or compiler-managed boundary, expand manually instead of assuming isolation. Run `daddy-reviews capabilities --root . --query 'business operation'` to find initial Python/JS/TS symbol candidates, then inspect inputs/outputs, side effects, transaction boundaries, actual consumers, and domain ownership before proposing reuse.
 
 **Never** label import cycles, similarity hits, or transitive import paths automatically as bugs, blocked PRs, or redundant implementation. `graph` supports explicit JSON export via shell redirection; a saved snapshot is not authenticated to a commit unless the caller pins/verifies that revision. Boundaries: 4,000 files, 350 KB/file, 24 MB total indexed source, depth cap 8; report truncation rather than creating false completeness claims. See `docs/GRAPH.md`.
+
+## Local TS/JS aliases (v0.7.0)
+
+Module graph alias edges tagged `js_tsconfig_alias_*` reflect explicit local `paths`/`baseUrl` declarations only. Verify the actual project tsconfig inheritance, compiler/bundler resolution, source inclusion, and exports before relying on these edges. Unsupported configs and ambiguous targets produce warnings/abstention. Do not equate a resolved module with an invoked symbol or verified runtime dependency.
