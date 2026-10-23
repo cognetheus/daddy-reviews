@@ -8,6 +8,7 @@ from .impact import changed_python_symbols, possible_consumers, test_candidates,
 from .inspect import investigate_python
 from .references import import_call_candidates
 from .stack import scan_stack
+from .js_graph import js_changed_symbols, js_import_call_candidates
 
 
 def review_patch(root: Path, patch: str, task: str='Review pull request') -> dict:
@@ -16,6 +17,8 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
     paths=[c.new_path or c.old_path for c in changes]
     plan=plan_review(task,paths)
     symbols=changed_python_symbols(root, changes)
+    js_symbols=js_changed_symbols(root,changes)
+    js_calls=js_import_call_candidates(root,js_symbols)
     refs=possible_consumers(root,symbols)
     direct_calls=import_call_candidates(root,symbols)
     tests=test_candidates(root,changes)
@@ -27,9 +30,11 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
             candidates.append(f)
     findings=[x.to_dict() for x in deduplicate(candidates)]
     return {
-        'report_version':'0.3.0', 'scope':'local_diff_plus_bounded_repository_context',
+        'report_version':'0.4.0', 'scope':'local_diff_plus_bounded_repository_context',
         'plan':asdict(plan), 'stack':scan_stack(root), 'files':[c.as_dict() for c in changes],
         'changed_python_symbols':[asdict(s) for s in symbols],
+        'changed_js_ts_symbols':[asdict(s) for s in js_symbols],
+        'js_ts_import_linked_calls':js_calls,
         'possible_consumers':refs, 'import_linked_calls':direct_calls, 'existing_test_candidates':tests,
         'reuse_candidates':reuse, 'findings':findings,
         'disposition':'no_verified_blockers' if not any(f['disposition']=='block' for f in findings) else 'requires_attention',
@@ -38,7 +43,7 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
           'Textual references and import-linked calls are candidates, not a proven call graph.',
           'AST-identical function bodies do not prove redundant responsibilities.',
           'A lack of findings is not approval or proof of defect-free code.',
-          'This first reviewer uses Python AST and conservative heuristics; TS/.NET/Java analyzers are future adapters.',
+          'Python uses AST; JS/TS uses partial lexical import heuristics, not TypeScript compiler resolution. .NET/Java symbol analyzers remain future adapters.',
           'Diffs from --diff-file are not authenticated to local repository state.'
         ]
     }

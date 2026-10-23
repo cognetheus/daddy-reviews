@@ -23,3 +23,7 @@ Choose task mode and scope with `review-orchestrator`. For a PR begin with `pr-r
 - `infra-review`: Docker, CI/CD, observability, runtime and recovery
 
 See `docs/ROADMAP.md`. CLI coverage is deliberately smaller than the skill playbooks; do not confuse guidance with implemented automatic analyses.
+
+## v0.4.0 tools
+
+`daddy-reviews review` now includes partial JS/TS import-linked call candidates alongside Python AST analysis. `daddy-reviews contracts --base-contract OLD --head-contract NEW` compares OpenAPI 3 JSON snapshots. Treat both as hypotheses requiring independent verification; neither supports an automatic PR approval or critical finding.

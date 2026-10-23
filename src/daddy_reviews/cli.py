@@ -8,17 +8,20 @@ from .diff import DiffError,git_diff
 from .inspect import inventory, investigate_python
 from .review import review_patch
 from .stack import scan_stack
+from .contracts import ContractError, compare_openapi, read_contract
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--task',default='Review pull request')
     parser.add_argument('--changed',nargs='*',default=[])
     parser.add_argument('--base',default='HEAD~1',help='PR target/base commit or ref')
     parser.add_argument('--head',default='HEAD',help='PR head commit or ref')
     parser.add_argument('--diff-file',help='Read an existing unified patch instead of invoking git')
+    parser.add_argument('--base-contract',help='OpenAPI JSON snapshot before change')
+    parser.add_argument('--head-contract',help='OpenAPI JSON snapshot after change')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -29,6 +32,13 @@ def main(argv=None):
         data=inventory(root)
     elif args.command=='stack':
         data=scan_stack(root)
+    elif args.command=='contracts':
+        if not args.base_contract or not args.head_contract:
+            parser.error('contracts needs both --base-contract and --head-contract')
+        try:
+            data=compare_openapi(read_contract(Path(args.base_contract)),read_contract(Path(args.head_contract)))
+        except (ContractError,OSError) as exc:
+            parser.error(str(exc))
     elif args.command=='review':
         try:
             patch=Path(args.diff_file).read_text(encoding='utf-8') if args.diff_file else git_diff(root,args.base,args.head)

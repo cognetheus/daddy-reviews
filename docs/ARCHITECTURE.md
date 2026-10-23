@@ -46,3 +46,9 @@ CLI review
 3. Cross-layer contract diffing (OpenAPI/DTO/schema, ORM, event payloads and UI mappings).
 4. Dependency scanners, version-specific standards registry, architecture policy testing, sandboxed runtime checks.
 5. Independent verification runner, stable report schema, draft GitHub comments behind approval.
+
+## v0.4.0 extensions
+
+- `js_graph.py` discovers changed JS/TS declarations and calls through direct relative named/namespace imports. It masks comments/strings and uses workspace-contained paths; still only syntactic, not language-service resolution.
+- `contracts.py` provides independent OpenAPI 3.x JSON snapshot comparison; emits candidates without severity or runtime assertions.
+- Neither extension can establish business-level semantic equivalence, operational correctness, or complete end-to-end data lineage.

@@ -54,3 +54,15 @@ The rest of \`skills/\` contains specialist guides for frontend, backend, securi
 ## Attribution
 
 Published exclusively under the connected \`cognetheus\` account without co-author trailers.
+
+## v0.4.0 — syntax-linked JS/TS and OpenAPI review
+
+The read-only `review` packet now includes `changed_js_ts_symbols` and `js_ts_import_linked_calls`, for common relative named/namespace imports. This partial lexical analysis is **not** full TS language-server resolution (dynamic imports, re-exports, path aliases and shadowing are not reliably handled).
+
+Compare explicit OpenAPI 3.x **JSON** snapshots:
+
+```bash
+daddy-reviews contracts --base-contract old-openapi.json --head-contract new-openapi.json
+```
+
+It identifies operation removal, request/response object-property removal, newly required request fields, and primitive field type changes. These are **schema-change candidates**, not verified runtime bugs or complete cross-layer DTO/ORM mappings. Nested/composed schemas and multiple status responses require later adapters. Do not assign critical severity from these candidates alone.

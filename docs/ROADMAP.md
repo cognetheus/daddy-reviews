@@ -29,3 +29,7 @@ Research update registry, regression evaluations, clean PR false-positive rate, 
 
 ### Evidence gates
 Every blocker must have a documented impact, reachable failure path, exact location, and confirmed evidence. Unverified critical *hypotheses* may demand urgent investigation but are not mislabeled as proven. Full repository scans are explicitly requested or triggered by high-impact evidence, not the default.
+
+### v0.4.0 delivered incremental capability
+
+Initial relative-import JS/TS consumer candidates and bounded OpenAPI JSON compatibility deltas. Full multi-language symbol resolution, DTO-to-ORM mapping, robust verification engine and contract-version rollout tests remain planned.
