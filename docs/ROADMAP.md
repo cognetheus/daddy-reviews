@@ -33,3 +33,7 @@ Every blocker must have a documented impact, reachable failure path, exact locat
 ### v0.4.0 delivered incremental capability
 
 Initial relative-import JS/TS consumer candidates and bounded OpenAPI JSON compatibility deltas. Full multi-language symbol resolution, DTO-to-ORM mapping, robust verification engine and contract-version rollout tests remain planned.
+
+### v0.5.0 — implemented review-fixture harness
+
+Deterministic candidate regression tests now use JSON-labelled fixtures, isolated temporary snapshots, clean changes and high-risk filename scenarios. This is the foundation for more ambitious scoring; currently it assesses syntactic detection only. Next: confirmed human-labelled PR defects, independent reviewer verification, calibration studies and persistent finding identities.

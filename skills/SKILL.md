@@ -27,3 +27,7 @@ See `docs/ROADMAP.md`. CLI coverage is deliberately smaller than the skill playb
 ## v0.4.0 tools
 
 `daddy-reviews review` now includes partial JS/TS import-linked call candidates alongside Python AST analysis. `daddy-reviews contracts --base-contract OLD --head-contract NEW` compares OpenAPI 3 JSON snapshots. Treat both as hypotheses requiring independent verification; neither supports an automatic PR approval or critical finding.
+
+## Calibration regression fixtures (v0.5.0)
+
+Use `daddy-reviews evaluate --dataset evals/baseline.json` to test deterministic rule candidate behavior. The CLI measures syntax candidate accuracy against handcrafted labels and clean-fixture false-alarm rate; it does **not** establish correctness of actual bug detection, severity, or architecture decisions. Any new reviewer rule must add clean and positive fixtures and be checked for impact on false positives before promotion.

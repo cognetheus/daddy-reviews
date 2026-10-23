@@ -70,3 +70,7 @@ It identifies operation removal, request/response object-property removal, newly
 ## v0.4.1 — evidence replay
 
 Run `daddy-reviews verify --root . --report-file review.json` to recheck supported patterns against the current source snapshot. Currently only `PY-SILENT-EXCEPT` can be replayed. A reproduced pattern is **not proof of a defect or its severity**; unsupported rules remain explicitly unresolved. The report contains a SHA-256 of examined file bytes, not a trusted Git commit identity.
+
+## v0.5.0 — review calibration regression fixtures
+
+`daddy-reviews evaluate --dataset evals/baseline.json` executes isolated read-only source fixtures. Metrics include syntax-*candidate* precision and recall, clean-case false-alarm rate, and count of unjustified blocking dispositions. **These are not software-defect detection accuracy metrics.** The baseline contains normal cases, a changed exception handler, a pre-existing exception handler unrelated to the diff, and a sensitive filename requiring deeper inspection but not automatic critical severity. Human-labeled real defect corpora, severity calibration and semantic verification remain future work.
