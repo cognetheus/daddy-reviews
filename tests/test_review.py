@@ -205,3 +205,35 @@ index a..b 100644
 '''
         report = review_patch(root,patch)
         assert report['findings']==[]
+
+
+def test_import_linked_direct_calls_ignore_unrelated_mention():
+    from daddy_reviews.references import import_call_candidates, module_of
+    from daddy_reviews.impact import ChangedSymbol
+    with TemporaryDirectory() as d:
+        root=Path(d)
+        (root/'src').mkdir()
+        (root/'src'/'billing').mkdir()
+        (root/'src'/'billing'/'__init__.py').write_text('')
+        (root/'src'/'billing'/'engine.py').write_text('def invoice_total(x): return x * 2\n')
+        (root/'src'/'billing'/'client.py').write_text('''from billing.engine import invoice_total as total
+import billing.engine as engine
+from .engine import invoice_total as relative_total
+
+def calculate():
+    a = total(5)
+    b = engine.invoice_total(7)
+    c = relative_total(6)
+    return a + b + c
+''')
+        (root/'src'/'other.py').write_text('''# mention invoice_total without importing it
+
+def foo():
+    return invoice_total(3)
+''')
+        sym=ChangedSymbol('invoice_total','FunctionDef','src/billing/engine.py',1,1)
+        assert module_of(sym.path)=='billing.engine'
+        refs=import_call_candidates(root,[sym])
+        assert len(refs)==3
+        assert all(r['path']=='src/billing/client.py' for r in refs)
+        assert {r['expression'] for r in refs}=={'total','engine.invoice_total','relative_total'}

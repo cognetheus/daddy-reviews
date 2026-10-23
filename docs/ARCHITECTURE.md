@@ -2,7 +2,7 @@
 
 This is a staged engineering intelligence platform, not a monolithic LLM prompt. Use deterministic parsing, native compiler/static-analysis tools, symbol indexes and tests where possible, with bounded model reasoning for contextual decisions.
 
-## Current pipeline (v0.2.0)
+## Current pipeline (v0.2.1)
 
 \`\`\`
 CLI review
@@ -11,6 +11,7 @@ CLI review
   -> task router (risk hints, not severity)
   -> Python AST changed-definition discovery
   -> bounded textual possible-consumer scan
+  -> Python AST import-linked direct-call candidates
   -> existing test-name candidates
   -> Python AST structural reuse candidates
   -> changed-line-only silent-catch candidate detector
