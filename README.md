@@ -1,37 +1,55 @@
 # Daddy Reviews
 
-**Evidence-first software engineering review infrastructure.**
+**Evidence-first engineering intelligence for PRs and repository review.**
 
-This repository starts with a working Phase 0–1 foundation: deterministic task-aware review planning, blast-radius indicators, read-only Python repository reconnaissance, a conservative candidate detector, a calibrated finding schema, and tests. It is **not** yet a complete multi-language semantic reviewer or GitHub PR bot.
+![CI](https://github.com/cognetheus/daddy-reviews/actions/workflows/ci.yml/badge.svg)
 
-## Quick start
+v0.2.0 now includes a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
 
-```bash
+## Install and test
+
+\`\`\`bash
 python -m pip install -e . pytest
 pytest -q
+\`\`\`
+
+## Usage
+
+\`\`\`bash
+# Diff-first evidence packet for a local PR branch (base ref must exist locally)
+daddy-reviews review --root . --base origin/main --head HEAD
+
+# Offline review using an existing Git unified patch
+daddy-reviews review --root . --diff-file /tmp/change.patch
+
+# Earlier commands remain available
 daddy-reviews plan --task 'Review PR' --changed src/auth/tenant.py
 daddy-reviews inventory --root .
 daddy-reviews audit --root . --changed src/daddy_reviews/core.py
-```
+\`\`\`
 
-All commands are read-only. Output is JSON. Findings from static heuristics are **unverified candidates**, not proof of defects. No GitHub posting or modifications are performed.
+Every command is read-only, returns JSON, and performs no GitHub posting or repository writes. An evidence packet contains changed hunks/line numbers, initial risk routing, Python changed symbols, textual possible references, potential structurally duplicated Python function bodies, matching test-file paths, and preliminary swallowed-exception candidates restricted to changed lines.
 
-## Core principles
+**Evidence limitations matter:** textual matches are not an accurate call graph; function-body similarity does not justify automatic consolidation; a test filename is not verified test coverage; a zero-finding result is not a merge approval. All heuristic findings remain unverified until confirmed using appropriate code/context/runtime evidence.
 
-- Review intent first; choose depth according to actual blast radius.
-- Review PR diffs before following relevant consumers and cross-layer contracts.
-- Investigate before classifying; severity, verification, and disposition are separate.
-- No quotas for bugs or critical findings; zero findings is a valid outcome.
-- Search for existing repository capabilities before recommending new implementations.
-- Prefer official, version-appropriate standards to trendy recommendations.
-- Separate changed defects from pre-existing debt and theoretical risks.
-- Independent verification and human authorization precede publication/remediation.
+## Skills and roadmap
 
-## Current scope
+- [skills/SKILL.md](skills/SKILL.md) — skill router and evidence policy
+- [skills/pr-review/SKILL.md](skills/pr-review/SKILL.md) — diff-first and bigger-picture PR review protocol
+- [docs/REVIEW_PROTOCOL.md](docs/REVIEW_PROTOCOL.md) — operational methodology and limitations
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — implemented architecture and trust boundaries
+- [docs/ROADMAP.md](docs/ROADMAP.md) — staged cross-language implementation roadmap
 
-- `plan`: task routing and coarse risk signals based on filenames (heuristics, not proof).
-- `inventory`: Python symbol inventory and language-extension counts.
-- `audit`: preliminary Python silent-catch candidates; intentionally low severity and unverified.
-- Skills are extensive operator guidance for agent-assisted review; they do **not** imply corresponding automated checks are implemented.
+The rest of \`skills/\` contains specialist guides for frontend, backend, security, ORM, dependencies, infrastructure, architectural review, finding verification, and repository intelligence.
 
-See `docs/ROADMAP.md` and `skills/` for the staged design and detailed operator instructions.
+## Engineering principles
+
+1. Understand intent and existing code before recommending new work.
+2. PR-first, then meaningful consumer and architectural impact analysis.
+3. Evidence before severity; no quotas for findings or critical bugs.
+4. Version-aware guidance, authoritative standards and clear uncertainty.
+5. No source changes or GitHub review publication without explicit authorization.
+
+## Attribution
+
+Published exclusively under the connected \`cognetheus\` account without co-author trailers.

@@ -19,8 +19,13 @@ def walk(root: Path):
     for p in root.rglob('*'):
         if any(part in EXCLUDE for part in p.relative_to(root).parts):
             continue
-        if p.is_file() and p.suffix in SOURCES and p.stat().st_size < 500_000:
-            yield p
+        if p.is_symlink():
+            continue
+        try:
+            if p.is_file() and p.suffix in SOURCES and p.stat().st_size < 500_000:
+                yield p
+        except OSError:
+            continue
 
 def inventory(root: Path) -> dict:
     root = root.resolve()
@@ -53,8 +58,8 @@ def investigate_python(root: Path, changed_paths: set[str] | None = None) -> lis
             continue
         for node in ast.walk(tree):
             if isinstance(node,ast.ExceptHandler) and len(node.body)==1 and isinstance(node.body[0],ast.Pass):
-                findings.append(Finding('PY-SILENT-EXCEPT',rel,node.lineno,
-                    'Exception is silently discarded',f'Bare pass in except handler near line {node.lineno}',
+                findings.append(Finding('PY-SILENT-EXCEPT',rel,node.body[0].lineno,
+                    'Exception is silently discarded',f'Bare pass in except handler at line {node.body[0].lineno}',
                     Severity.LOW,Verification.UNVERIFIED,
                     changed=(rel in changed_paths) if changed_paths is not None else None,
                     recommendation='Determine whether ignoring this failure is intentional; preserve context or handle at the correct boundary.'))

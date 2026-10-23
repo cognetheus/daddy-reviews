@@ -1,36 +1,38 @@
 ---
 name: pr-review
-description: Diff-First Pull Request Review. Evidence-first, calibrated review that considers existing repository capabilities.
+description: Diff-first, risk-proportionate pull request engineering review; produces evidence-backed findings without inventing blockers.
 ---
 
-# Diff-First Pull Request Review
+# Pull Request Review
 
-## Activation and responsibility
+## Activation
 
-Read base/head commits, changed hunks, PR description, linked issues, test intent and prior discussion. First assess changed behavior and edge cases. Then inspect only relevant callers, models, migrations, consumers, hooks and interfaces. Label findings introduced/pre-existing/unknown. Use precise changed-line comments and distinguish an optional improvement from a blocker.
+When asked to review a pull request, changed commits, or a proposed patch. This is **not** a general repository audit unless explicitly requested.
 
-## Non-negotiable engineering nuance
+## Intake
 
-Avoid commenting on an unchanged line unless needed to explain a newly introduced regression. Do not punish a PR for unrelated technical debt. Draft private comments first; review publishing and merge decisions are separate authorized acts.
+Confirm base/head commit, target branch, stated purpose, linked issue/spec, acceptance criteria, changed paths, tests and existing PR comments. If no spec exists, extract observable intended behavior and mark unknowns rather than invent requirements. Check whether the patch is complete; binary/generated changes require separate handling. Never run untrusted project code outside appropriate isolation.
 
-## Mandatory evidence contract
+## Pass 1: PR-local correctness
 
-For each candidate: record repository-relative location, observed behavior, reproducible evidence (or state unverified), reachable impact, existing mitigation, installed stack versions, introduced/pre-existing/unknown status, severity distinct from confidence, and disposition. Search relevant existing implementations before proposing a new one. A passing review with zero actionable findings is valid. Never invent a critical issue or claim tests ran when they did not.
+Inspect every materially changed hunk with enough context to establish semantics. Trace normal/error paths, validation, types, error propagation, failure cleanup, availability, tests and backwards compatibility. Look for missing inputs/outputs and field mappings, broken null handling, swallowing exceptions, missing awaits, concurrency, and unsafe defaults. Apply actual installed language/framework conventions and review against implemented requirements. A suspicious pattern is a candidate until verified.
 
-## Review workflow
+## Pass 2: system integration and blast radius
 
-1. Establish user intent, requirements, and the changed scope. Distinguish a PR, bug, feature, incident, migration, and full audit.
-2. Examine affected source and direct consumers. Use compiler, language-server, symbols, schemas, and existing tests before speculation.
-3. Escalate to dependency or system review only for reachable high-impact paths, interface/contract change, cross-module behavior, or unresolved material risk.
-4. Verify suspected findings independently: attempt disproof, check defenses, constraints, consumers, versions, and possible false positives.
-5. Calibrate actual consequence; do not assign severity solely from a code smell, small textual diff, or theoretical extreme.
-6. Deduplicate by root cause. Separate actionable introduced defects from pre-existing debt and optional improvements.
-7. Return precise fixes and verifying tests. Do not change source or post GitHub comments without authorization.
+Determine which changed symbols, exported contracts, data fields, shared hooks, environment keys, migrations, events and consumers are affected. Follow the relevant call graph, API/DTO/ORM contracts, security boundaries and deployment dependencies. A one-line field rename may break many services; a hundred-line isolated UI change may not. Escalate to full domain/system review only for demonstrated reachability, actual cross-cutting changes, or credible unresolved high-impact uncertainty. Keep pre-existing unrelated debt separate from PR regressions.
 
-## Stop conditions
+## Reuse-before-creation
 
-Stop when the relevant behavior, contracts, and callers have been examined and additional exploration is unlikely to change the decision. Preserve material uncertainties as unverified; escalate severe uncertainties rather than pretending they were resolved. Avoid repeated recursive audit loops.
+Check existing classes/services/helpers/components/hooks/integrations/brokers/queues for overlapping capability. Compare domain authority, side effects, guarantees, data contracts, consumers and change cadence. Similar names or identical ASTs cannot establish that two modules should be unified. Preserve bounded-context separation and valid local/offline duplicates.
 
-## Output format
+## Pass 3: independent verification and decisions
 
-Provide: scope reviewed; relevant installed versions and standards; verification performed and not performed; findings separated by verified status and PR attribution; exact references and underlying root cause; existing reuse opportunities; prioritized remedial actions and tests; conclusion including clean outcome if appropriate. State the evidence necessary to upgrade an uncertain candidate into a confirmed issue.
+For each candidate, attempt refutation: inspect guardrails, feature flags, consumers, tests, constraints and counterexamples. Run appropriate tests if safe and available; record what was actually run. Severity is based on demonstrated failure, reachability, impact and mitigation, not review pressure. Distinguish confirmed introduced defects, pre-existing issues, hypotheses and optional style suggestions. Group multiple symptoms by root cause. **Zero actionable findings is a valid result**.
+
+## Output contract
+
+Produce: purpose and commits; reviewed scope and expansion rationale; confirmed actionable findings with precise changed-line refs; unverified material risks with required validation; pre-existing follow-up items; reuse opportunities only when justified; tests run/not run; PR recommendation with explicit caveats. Never call a review approved solely because heuristic analysis found no findings. Draft GitHub comments, preview them, and obtain explicit authorization before posting.
+
+## CLI evidence tool (v0.2.0)
+
+\`daddy-reviews review --root . --base origin/main --head HEAD\` yields a read-only candidate evidence packet; \`--diff-file\` accepts an existing Git patch. This tool currently only supports Python AST symbol analysis and limited heuristics, plus general patch parsing. Reference candidates are not proven call sites, test candidates are not evidence of test execution, and static findings are not independently verified. Load other relevant specialist skills as needed.
