@@ -133,11 +133,14 @@ def build_graph(root: Path) -> dict[str, Any]:
                         if path:
                             edge(rel, path, 'python_import', node.lineno)
                 elif isinstance(node, ast.ImportFrom):
-                    target = _python_target(pyindex, module, node.module or '', node.level,
-                                            [alias.name for alias in node.names],
-                                            rel.endswith('/__init__.py') or rel == '__init__.py')
-                    if target:
-                        edge(rel, target, 'python_from_import', node.lineno)
+                    # A from-import can name independently indexed submodules.
+                    members = [alias.name for alias in node.names if alias.name != '*']
+                    for member in members or ['*']:
+                        target = _python_target(pyindex, module, node.module or '', node.level,
+                                                [member] if member != '*' else [],
+                                                rel.endswith('/__init__.py') or rel == '__init__.py')
+                        if target:
+                            edge(rel, target, 'python_from_import', node.lineno)
         elif file.suffix in EXTENSIONS:
             masked = _mask_noncode(source)
             for found in JS_IMPORT.finditer(source):

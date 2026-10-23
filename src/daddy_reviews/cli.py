@@ -13,11 +13,12 @@ from .verify import EvidenceError, read_report, replay_evidence
 from .evaluate import EvaluationError, read_dataset, evaluate_dataset
 from .graph import build_graph, impact, import_cycles
 from .catalog import catalog, find_capabilities
+from .graph_delta import GraphSnapshotError, compare_snapshots, read_snapshot
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--task',default='Review pull request')
     parser.add_argument('--changed',nargs='*',default=[])
@@ -30,6 +31,8 @@ def main(argv=None):
     parser.add_argument('--dataset',default='evals/baseline.json',help='JSON fixtures for syntax candidate evaluation')
     parser.add_argument('--query',help='Capability name or related terms')
     parser.add_argument('--max-depth',type=int,default=3,help='Maximum reverse dependency hops')
+    parser.add_argument('--before-graph',help='Previously exported graph JSON snapshot')
+    parser.add_argument('--after-graph',help='Later exported graph JSON snapshot')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -56,6 +59,14 @@ def main(argv=None):
         graph=build_graph(root)
         data={'graph':graph,'cycles':import_cycles(graph),
               'impact':impact(graph,args.changed,max_depth=args.max_depth) if args.changed else None}
+    elif args.command=='graph-diff':
+        if not args.before_graph or not args.after_graph:
+            parser.error('graph-diff requires --before-graph and --after-graph')
+        try:
+            data=compare_snapshots(read_snapshot(Path(args.before_graph)),
+                                   read_snapshot(Path(args.after_graph)),max_depth=args.max_depth)
+        except GraphSnapshotError as exc:
+            parser.error(str(exc))
     elif args.command=='capabilities':
         graph=build_graph(root)
         listing=catalog(root,graph)

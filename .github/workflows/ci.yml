@@ -23,3 +23,6 @@ jobs:
       - run: python -m daddy_reviews.cli evaluate --dataset evals/baseline.json
       - run: python -m daddy_reviews.cli graph --root . --changed src/daddy_reviews/graph.py > /dev/null
       - run: python -m daddy_reviews.cli capabilities --root . --query review > /dev/null
+      - run: |
+          python -m daddy_reviews.cli graph --root . > /tmp/daddy-reviews-graph.json
+          python -m daddy_reviews.cli graph-diff --before-graph /tmp/daddy-reviews-graph.json --after-graph /tmp/daddy-reviews-graph.json > /dev/null

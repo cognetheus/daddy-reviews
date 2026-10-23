@@ -44,3 +44,7 @@ Run `daddy-reviews graph --root . --changed PATH --max-depth 3` before evaluatin
 ## Local TS/JS aliases (v0.7.0)
 
 Module graph alias edges tagged `js_tsconfig_alias_*` reflect explicit local `paths`/`baseUrl` declarations only. Verify the actual project tsconfig inheritance, compiler/bundler resolution, source inclusion, and exports before relying on these edges. Unsupported configs and ambiguous targets produce warnings/abstention. Do not equate a resolved module with an invoked symbol or verified runtime dependency.
+
+## Historical graph delta (v0.8.0)
+
+Capture `daddy-reviews graph --root REVISION_WORKTREE > graph.json` separately for each revision and compare using `daddy-reviews graph-diff --before-graph BEFORE --after-graph AFTER`. Treat modified SHA-256 files, import-edge changes, and new/lost reverse consumer candidates as investigation leads only. Never infer commit provenance, actual runtime reachability, a regression, or a blocker from a snapshot delta. Graph-diff is read-only and is **not** an incremental cache; source must be rescanned for each snapshot.

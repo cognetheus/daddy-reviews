@@ -45,3 +45,7 @@ Shipped deterministic Python/JS/TS import-graph reconnaissance, bounded reverse 
 ### Phase 2 alias-resolution increment (v0.7.0)
 
 Added bounded JSONC-aware local `tsconfig.json`/`jsconfig.json` `paths` and `baseUrl` candidates to module dependency impact. Nearest standalone configs are recognized; inherited configs, project references and ambiguous target mappings abstain with warnings. Next: native compiler/SCIP adapters, persisted incremental graph snapshots, contract-level tracing, and human-verified symbol references.
+
+### Phase 2 snapshot comparison increment (v0.8.0)
+
+Added bounded read-only graph snapshot comparison, source-hash and import-edge deltas, and before/after reverse consumer candidates. Snapshots must be captured explicitly from the intended revisions; no Git commit identity is claimed. Also fixed Python multi-member from-import indexing. Remaining: **actual** incremental persistent indexing/cache, compiler/SCIP symbol adapters, cross-layer contract tracing, and independently verified call reachability.

@@ -20,3 +20,7 @@ The graph is an evidence source, not a verdict engine. Before relying on a depen
 - Property-level end-to-end tracing across UI, API, DTO, ORM and database.
 - Semantic reuse assessment with human-evaluated positive and negative examples.
 - Graph-driven scope routing, reproducible runtime verification and human-adjudicated severity calibration.
+
+## Snapshot comparison regression gates (v0.8.0)
+
+Validate raw/enveloped graph JSON, SHA-256, bounded sizes, unsafe paths, duplicates, edge endpoints and symlinks. Compare unchanged and changed hashes, added/removed imports, line-only shifts, deleted-module before-impact, warning propagation, explicit detail truncation, and CLI round trips. Python `from pkg import a, b` must create separate indexed submodule edges. These are static candidate tests, not defect-detection precision measurements.

@@ -4,7 +4,7 @@
 
 The read-only graph builder indexes bounded Python and JavaScript/TypeScript source trees. Each node records its repository-relative path, language family, and local source SHA-256. Each edge records the importing and imported module, source line, import kind, and an explicitly limited **static import candidate** classification.
 
-Python imports are parsed with stdlib AST, supporting relative and package imports when the target is unambiguous. JS/TS edges cover common relative import/export statements, literal require, and literal dynamic import. TypeScript path aliases, full re-export resolution, dependency-injection wiring, and compiler symbol identity are *not* resolved.
+Python imports are parsed with stdlib AST, supporting relative and package imports when the target is unambiguous. JS/TS edges cover common relative import/export statements, literal require, and literal dynamic import. Full re-export resolution, dependency-injection wiring, and compiler symbol identity are *not* resolved.
 
 ## Commands
 
@@ -55,3 +55,15 @@ Test positive edges, transitive consumers, relative Python imports, TS re-export
 Non-relative JS/TS imports may now resolve to indexed local files when a nearest standalone `tsconfig.json` or `jsconfig.json` declares `compilerOptions.paths` or `baseUrl`. Exact aliases, single-star aliases, JSONC comments/trailing commas, and bounded target lists are supported. The resolver never executes TypeScript, Node, package scripts, or repository code.
 
 The resolver **abstains** on config inheritance (`extends`), project references, invalid/oversized/symlinked config, ambiguous indexed targets, unsupported wildcard patterns, or targets outside the repository. Config warnings appear in the graph and review packet. It cannot determine whether the importing file is included in the tsconfig project, nor honor Node/package export maps, condition selection, bundler aliases, or compiler module resolution modes. A positive edge is a **configuration-based candidate**, not proof of a compiled import or reachable call. The existing direct JS/TS symbol-call heuristic remains relative-import-only.
+
+## v0.8.0: comparing two graph snapshots
+
+The `graph-diff` command accepts two explicit JSON exports from `daddy-reviews graph`. It validates the graph version, paths, SHA-256 values, unique nodes/edges, edge endpoints and size limits before computing changes. It never invokes Git or project code.
+
+```bash
+daddy-reviews graph --root /path/to/before > before.json
+daddy-reviews graph --root /path/to/after > after.json
+daddy-reviews graph-diff --before-graph before.json --after-graph after.json --max-depth 3
+```
+
+The report distinguishes added, removed, and source-hash-modified modules; import-edge changes (identity: source, target, kind; line movement alone ignored); and bounded before/after reverse-import candidates. Configuration-only changes can alter alias edges without modifying indexed source files. Invalid or oversized snapshots fail closed. File changes are based on source hashes **only**; there is no proof the snapshots belong to a specific commit, no incremental parser, no verified runtime call graph, and no semantic defect inference. Warnings and output truncation are explicit.

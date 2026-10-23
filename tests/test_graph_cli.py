@@ -33,4 +33,23 @@ new file mode 100644
         report=review_patch(root,patch)
         assert report['module_dependency_impact']['direct_consumers'][0]['path']=='caller.py'
         assert report['findings']==[]
-        assert report['report_version']=='0.7.0'
+        assert report['report_version']=='0.8.0'
+
+
+def test_graph_diff_cli_reads_exported_envelopes(capsys):
+    with TemporaryDirectory() as td:
+        root = Path(td)
+        (root / 'core.py').write_text('value = 1\n')
+        (root / 'caller.py').write_text('import core\n')
+        main(['graph', '--root', str(root)])
+        before = root / 'before.json'
+        before.write_text(capsys.readouterr().out)
+        (root / 'core.py').write_text('value = 2\n')
+        main(['graph', '--root', str(root)])
+        after = root / 'after.json'
+        after.write_text(capsys.readouterr().out)
+        main(['graph-diff', '--root', str(root),
+              '--before-graph', str(before), '--after-graph', str(after)])
+        result = json.loads(capsys.readouterr().out)
+        assert result['node_changes']['modified'][0]['path'] == 'core.py'
+        assert result['reverse_impact']['after']['direct_consumers'][0]['path'] == 'caller.py'

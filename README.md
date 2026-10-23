@@ -4,7 +4,7 @@
 
 ![CI](https://github.com/cognetheus/daddy-reviews/actions/workflows/ci.yml/badge.svg)
 
-v0.3.0 now includes a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
+v0.8.0 includes a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
 
 ## Install and test
 
@@ -93,3 +93,18 @@ PR packets include bounded module-level impact and changed-module import-cycle c
 The module graph now recognizes **local `tsconfig.json` / `jsconfig.json` `compilerOptions.paths` and `baseUrl` mappings**, including one-star aliases, JSONC comments/trailing commas, and nearest-config selection in a monorepo. Resolved edges are labeled `js_tsconfig_alias_*`, so they can be distinguished from ordinary relative imports. Alias results participate in reverse dependency impact analysis and PR evidence packets.
 
 This is **not compiler-aware symbol resolution**. Config `extends` and project references cause explicit abstention/warnings; multiple possible indexed targets are not guessed. Package exports, module-resolution modes, project inclusion, inherited aliases, and actual runtime calls remain unverified. See [graph design](docs/GRAPH.md).
+
+## v0.8.0 — snapshot graph delta and Python multi-import correctness
+
+Compare **explicitly exported** graph snapshots without executing source code or writing repository files:
+
+```bash
+# Run each command in its corresponding checked-out revision/worktree.
+daddy-reviews graph --root /path/to/before > before-graph.json
+daddy-reviews graph --root /path/to/after > after-graph.json
+
+# Compare indexed source hashes, import edges and bounded reverse consumer candidates.
+daddy-reviews graph-diff --before-graph before-graph.json --after-graph after-graph.json
+```
+
+The new graph-diff reader validates snapshot format, SHA-256, paths, edge endpoints, duplicates, and size budgets; line-only movement does not count as an import-edge change. Changed TypeScript alias resolution may produce an edge delta even when indexed source hashes are unchanged. Python `from pkg import a, b` now indexes multiple resolvable submodule targets rather than only the first. No commit provenance is inferred from a snapshot, and this is **not** an incremental parser/cache or verified runtime call graph. See [graph documentation](docs/GRAPH.md).
