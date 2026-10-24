@@ -84,3 +84,19 @@ def test_package_submodule_import_not_misclassified(tmp_path):
     _write(tmp_path, 'client.py', 'from pkg import service as svc\nsvc.calculate()\n')
     result = python_symbol_impact(tmp_path, 'pkg/service.py', 'calculate')
     assert [x['expression'] for x in result['references']] == ['svc.calculate']
+
+
+def test_module_import_ambiguous_two_aliases_abstains(tmp_path):
+    _write(tmp_path, 'service.py', 'def calculate(): pass\n')
+    _write(tmp_path, 'api.py', 'from service import calculate as first\nfrom service import calculate as second\n')
+    _write(tmp_path, 'client.py', 'import api\napi.first()\napi.second()\n')
+    assert python_symbol_impact(tmp_path, 'service.py', 'calculate')['references'] == []
+
+
+def test_from_package_submodule_reexport(tmp_path):
+    _write(tmp_path, 'pkg/__init__.py', '')
+    _write(tmp_path, 'pkg/service.py', 'def calculate(): pass\n')
+    _write(tmp_path, 'pkg/api.py', 'from .service import calculate as compute\n')
+    _write(tmp_path, 'client.py', 'from pkg import api as barrel\nbarrel.compute()\n')
+    result = python_symbol_impact(tmp_path, 'pkg/service.py', 'calculate')
+    assert [x['expression'] for x in result['references']] == ['barrel.compute']

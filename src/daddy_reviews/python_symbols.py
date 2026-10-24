@@ -177,6 +177,31 @@ class _ExportProvenance:
         suffix = self.trace(module, exported_name, visited + (path,))
         return (path,) + suffix if suffix else None
 
+    def exported_names(self, path: str) -> list[tuple[str, tuple[str, ...]]]:
+        """Find uniquely proven names in a module that reach the selected target.
+
+        More than one proven name is deliberately left to the caller to
+        abstain on rather than arbitrarily choosing an import expression.
+        """
+        if path == self.target:
+            return [(self.symbol, (path,))]
+        # Load the module through the same bounded AST cache.
+        self.trace(path, self.symbol)
+        tree = self._trees.get(path)
+        if tree is None:
+            return []
+        names = {alias.asname or alias.name
+                 for stmt in tree.body if isinstance(stmt, ast.ImportFrom)
+                 for alias in stmt.names if alias.name != '*'}
+        if len(names) > 64:
+            return []
+        results = []
+        for name in sorted(names):
+            chain = self.trace(path, name)
+            if chain:
+                results.append((name, chain))
+        return results
+
 class _Calls(ast.NodeVisitor):
     def __init__(self, path: str, bindings: dict[str, str], target: str, symbol: str,
                  provenance: dict[str, tuple[str, ...]] | None = None) -> None:
@@ -304,19 +329,25 @@ def python_symbol_impact(root: Path, changed_path: str, symbol: str) -> dict:
                         non_import_bindings.names.add(binding)
                     elif chain:
                         possible[binding].append((binding, chain))
-                    elif submodule == changed_path:
-                        possible[binding].append((binding + '.' + symbol, (changed_path,)))
+                    elif submodule is not None:
+                        exports = provenance_resolver.exported_names(submodule)
+                        if len(exports) == 1:
+                            name, via = exports[0]
+                            possible[binding].append((binding + '.' + name, via))
+                        else:
+                            non_import_bindings.names.add(binding)
                     else:
                         non_import_bindings.names.add(binding)
             elif isinstance(stmt, ast.Import):
                 for alias in stmt.names:
                     binding = alias.asname or alias.name.split('.')[0]
                     resolved = _unique(index, {alias.name})
-                    chain = (provenance_resolver.trace(resolved, symbol)
-                             if resolved is not None else None)
-                    if chain:
-                        expression = binding + '.' + symbol if alias.asname else alias.name + '.' + symbol
-                        possible[binding].append((expression, chain))
+                    exports = (provenance_resolver.exported_names(resolved)
+                               if resolved is not None else [])
+                    if len(exports) == 1:
+                        name, via = exports[0]
+                        prefix = binding if alias.asname else alias.name
+                        possible[binding].append((prefix + '.' + name, via))
                     else:
                         non_import_bindings.names.add(binding)
             else:
