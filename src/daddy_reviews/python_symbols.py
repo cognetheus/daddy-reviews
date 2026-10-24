@@ -270,6 +270,9 @@ class _Calls(ast.NodeVisitor):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and self.resolver:
             proposed: dict[str, list[tuple[str, tuple[str, ...], int]]] = defaultdict(list)
             excluded = _Bindings()
+            for arg in ast.walk(node.args):
+                if isinstance(arg, ast.arg):
+                    excluded.names.add(arg.arg)
             for stmt in body:
                 if isinstance(stmt, (ast.Import, ast.ImportFrom)):
                     options, rejected = _import_candidates(self.path, stmt, self.index, self.resolver)
