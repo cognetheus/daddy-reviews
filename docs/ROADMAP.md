@@ -63,3 +63,7 @@ Opt-in persistent cache now reuses per-file resolved import edges when source ha
 ### Phase 2 Python symbol-reference candidate increment (v1.1.0)
 
 Added opt-in read-only `symbol-impact` for top-level Python function/class call candidates, using AST import binding and unique local module resolution. Supports aliased imports, module-qualified calls, and relative imports. Conservative lexical shadowing and ambiguous module names abstain. This is **not** compiler/LSP symbol identity, actual runtime invocation, or complete symbol reachability. Next: import-binding provenance under nested scopes, verified reexport handling, compiler-backed TypeScript symbols, and human-evaluated call-reference precision.
+
+### Phase 2 bounded Python reexport provenance (v1.2.0)
+
+`symbol-impact` now follows unambiguous unconditional top-level `from` reexports across up to eight module hops, including aliased package exports, and includes `provenance_modules` for each reported call candidate. It abstains on cycles, ambiguous paths, conditional imports, duplicate exports and module-level rebinding. Target definitions with conflicting module-level bindings are rejected. Remaining: nested-scope import provenance, compiler-backed TS symbol identity, verified runtime reachability and real-repository precision calibration.

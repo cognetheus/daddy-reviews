@@ -136,3 +136,7 @@ daddy-reviews symbol-impact --root . --changed src/pkg/service.py --symbol calcu
 ```
 
 Results include source paths, lines, expressions, shadowed-call abstentions, warnings and explicit limitations. Nested imports, star imports, reexports, dynamic behavior, and comprehension calls are not exhaustively resolved. Missing candidates **never** prove no consumers. No automatic findings or severity assignments are generated.
+
+## v1.2.0 — bounded Python reexport provenance
+
+`symbol-impact` now traces uniquely resolved, unconditional top-level Python `from` reexports, including aliased package barrels, and attaches `provenance_modules` to each call candidate. Cyclic, conditional, duplicate, shadowed and dynamically constructed exports are conservatively omitted. This is a static AST provenance hypothesis, not verified runtime symbol identity or call reachability. See [graph limitations](docs/GRAPH.md).

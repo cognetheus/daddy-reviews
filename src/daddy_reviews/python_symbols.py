@@ -125,12 +125,66 @@ def _unique(index: dict[str, set[str]], candidates: set[str]) -> str | None:
     return next(iter(matches)) if len(matches) == 1 else None
 
 
+
+class _ExportProvenance:
+    """Follow only unambiguous, unconditional module-level from-import exports.
+
+    This is a bounded AST provenance chain, not Python import execution.
+    Dynamic attributes, star exports, conditional imports and rebinding abstain.
+    """
+
+    MAX_HOPS = 8
+
+    def __init__(self, root: Path, index: dict[str, set[str]],
+                 target: str, symbol: str) -> None:
+        self.root = root
+        self.index = index
+        self.target = target
+        self.symbol = symbol
+        self._trees: dict[str, ast.Module | None] = {}
+
+    def trace(self, path: str, name: str, visited: tuple[str, ...] = ()) -> tuple[str, ...] | None:
+        if path == self.target and name == self.symbol:
+            return (path,)
+        if path in visited or len(visited) >= self.MAX_HOPS:
+            return None
+        if path not in self._trees:
+            try:
+                self._trees[path] = ast.parse((self.root / path).read_text(encoding='utf-8'))
+            except (OSError, UnicodeError, SyntaxError):
+                self._trees[path] = None
+        tree = self._trees[path]
+        if tree is None:
+            return None
+
+        imports: list[tuple[ast.ImportFrom, str]] = []
+        for stmt in tree.body:
+            if isinstance(stmt, ast.ImportFrom):
+                for alias in stmt.names:
+                    if alias.name != '*' and (alias.asname or alias.name) == name:
+                        imports.append((stmt, alias.name))
+            else:
+                collector = _Bindings()
+                collector.visit(stmt)
+                if name in collector.names:
+                    return None
+        if len(imports) != 1:
+            return None
+        statement, exported_name = imports[0]
+        module = _unique(self.index, _from_candidates(path, statement))
+        if module is None:
+            return None
+        suffix = self.trace(module, exported_name, visited + (path,))
+        return (path,) + suffix if suffix else None
+
 class _Calls(ast.NodeVisitor):
-    def __init__(self, path: str, bindings: dict[str, str], target: str, symbol: str) -> None:
+    def __init__(self, path: str, bindings: dict[str, str], target: str, symbol: str,
+                 provenance: dict[str, tuple[str, ...]] | None = None) -> None:
         self.path = path
         self.bindings = bindings
         self.target = target
         self.symbol = symbol
+        self.provenance = provenance or {}
         self.scopes: list[set[str]] = []
         self.references: list[dict] = []
         self.abstentions: list[dict] = []
@@ -177,6 +231,7 @@ class _Calls(ast.NodeVisitor):
                     'path': self.path, 'line': node.lineno, 'expression': expression,
                     'symbol': self.symbol, 'target_path': self.target,
                     'classification': 'python_ast_import_bound_call_candidate',
+                    'provenance_modules': list(self.provenance.get(head, ())),
                 })
                 if len(self.references) >= MAX_CALLS:
                     self.truncated = True
@@ -198,9 +253,18 @@ def python_symbol_impact(root: Path, changed_path: str, symbol: str) -> dict:
         target_tree = ast.parse(target_file.read_text(encoding='utf-8'))
     except (OSError, UnicodeError, SyntaxError) as exc:
         raise SymbolImpactError('Target Python source cannot be parsed') from exc
-    if not any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-               and n.name == symbol for n in target_tree.body):
-        raise SymbolImpactError('Target symbol must be a top-level function or class')
+    declarations = [n for n in target_tree.body
+                    if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                    and n.name == symbol]
+    if len(declarations) != 1:
+        raise SymbolImpactError('Target symbol must have exactly one top-level function or class declaration')
+    for statement in target_tree.body:
+        if statement is declarations[0]:
+            continue
+        bindings = _Bindings()
+        bindings.visit(statement)
+        if symbol in bindings.names:
+            raise SymbolImpactError('Target symbol has conflicting module-level bindings')
 
     index: dict[str, set[str]] = defaultdict(set)
     for path in sorted(indexed):
@@ -208,6 +272,7 @@ def python_symbol_impact(root: Path, changed_path: str, symbol: str) -> dict:
             for name in _python_names(path):
                 index[name].add(path)
 
+    provenance_resolver = _ExportProvenance(root, index, changed_path, symbol)
     references: list[dict] = []
     abstentions: list[dict] = []
     warnings = list(graph['warnings'])
@@ -220,7 +285,7 @@ def python_symbol_impact(root: Path, changed_path: str, symbol: str) -> dict:
         except (OSError, UnicodeError, SyntaxError):
             warnings.append(f'{path}: cannot parse Python references')
             continue
-        possible: dict[str, list[str]] = defaultdict(list)
+        possible: dict[str, list[tuple[str, tuple[str, ...]]]] = defaultdict(list)
         non_import_bindings = _Bindings()
         for stmt in tree.body:
             if isinstance(stmt, ast.ImportFrom):
@@ -230,31 +295,40 @@ def python_symbol_impact(root: Path, changed_path: str, symbol: str) -> dict:
                     if alias.name == '*':
                         continue
                     binding = alias.asname or alias.name
-                    if resolved_module == changed_path and alias.name == symbol:
-                        possible[binding].append(binding)
+                    chain = (provenance_resolver.trace(resolved_module, alias.name)
+                             if resolved_module is not None else None)
+                    submodule = _unique(index, {name + '.' + alias.name for name in candidates})
+                    # A package may expose both a submodule and an attribute of
+                    # the same name. Do not guess which object Python binds.
+                    if chain and submodule is not None:
+                        non_import_bindings.names.add(binding)
+                    elif chain:
+                        possible[binding].append((binding, chain))
+                    elif submodule == changed_path:
+                        possible[binding].append((binding + '.' + symbol, (changed_path,)))
                     else:
-                        submodule = _unique(index, {name + '.' + alias.name for name in candidates})
-                        if submodule == changed_path:
-                            possible[binding].append(binding + '.' + symbol)
-                        else:
-                            non_import_bindings.names.add(binding)
+                        non_import_bindings.names.add(binding)
             elif isinstance(stmt, ast.Import):
                 for alias in stmt.names:
                     binding = alias.asname or alias.name.split('.')[0]
                     resolved = _unique(index, {alias.name})
-                    if resolved == changed_path:
+                    chain = (provenance_resolver.trace(resolved, symbol)
+                             if resolved is not None else None)
+                    if chain:
                         expression = binding + '.' + symbol if alias.asname else alias.name + '.' + symbol
-                        possible[binding].append(expression)
+                        possible[binding].append((expression, chain))
                     else:
                         non_import_bindings.names.add(binding)
             else:
                 non_import_bindings.visit(stmt)
 
-        bindings = {binding: exprs[0] for binding, exprs in possible.items()
-                    if len(exprs) == 1 and binding not in non_import_bindings.names}
+        bindings = {binding: entries[0][0] for binding, entries in possible.items()
+                    if len(entries) == 1 and binding not in non_import_bindings.names}
         if not bindings:
             continue
-        visitor = _Calls(path, bindings, changed_path, symbol)
+        provenance = {binding: entries[0][1] for binding, entries in possible.items()
+                      if binding in bindings}
+        visitor = _Calls(path, bindings, changed_path, symbol, provenance)
         for stmt in tree.body:
             if visitor.truncated:
                 break
@@ -278,7 +352,8 @@ def python_symbol_impact(root: Path, changed_path: str, symbol: str) -> dict:
         'limitations': [
             'Only top-level Python functions/classes and syntactically import-bound call sites are indexed.',
             'This is not runtime reachability, verified invocation, or a compiler/LSP symbol graph.',
-            'Nested imports, star imports, reexports, monkey-patching, dynamic calls and comprehensions may be missed.',
+            'Nested imports, star imports, dynamic exports, conditional reexports, monkey-patching, dynamic calls and comprehensions may be missed.',
+            'Only unambiguous, unconditional, bounded module-level from-import reexport chains are traced.',
             'Lexical shadowing conservatively abstains; missing candidates do not establish isolation.',
         ],
     }
