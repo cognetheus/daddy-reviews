@@ -67,3 +67,7 @@ Added opt-in read-only `symbol-impact` for top-level Python function/class call 
 ### Phase 2 bounded Python reexport provenance (v1.2.0)
 
 `symbol-impact` now follows unambiguous unconditional top-level `from` reexports across up to eight module hops, including aliased package exports, and includes `provenance_modules` for each reported call candidate. It abstains on cycles, ambiguous paths, conditional imports, duplicate exports and module-level rebinding. Target definitions with conflicting module-level bindings are rejected. Remaining: nested-scope import provenance, compiler-backed TS symbol identity, verified runtime reachability and real-repository precision calibration.
+
+### Phase 2 function-local Python import candidates (v1.3.0)
+
+Added conservative function-local import provenance for direct unconditional function-body imports and calls on subsequent source lines. Shared import resolution ensures the same ambiguity and reexport abstentions as module-level references. Conditional imports, lexical conflicts, closures, class-local imports and comprehensions remain unverified. Next: compiler-backed TypeScript references, human-labelled precision calibration and cross-layer contract tracing.

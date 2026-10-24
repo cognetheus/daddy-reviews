@@ -202,25 +202,91 @@ class _ExportProvenance:
                 results.append((name, chain))
         return results
 
+
+def _import_candidates(path: str, stmt: ast.Import | ast.ImportFrom,
+                       index: dict[str, set[str]],
+                       resolver: _ExportProvenance) -> tuple[dict[str, list[tuple[str, tuple[str, ...]]]], set[str]]:
+    """Resolve one import statement to candidates, or conservatively reject names."""
+    possible: dict[str, list[tuple[str, tuple[str, ...]]]] = defaultdict(list)
+    rejected: set[str] = set()
+    if isinstance(stmt, ast.ImportFrom):
+        candidates = _from_candidates(path, stmt)
+        resolved_module = _unique(index, candidates)
+        for alias in stmt.names:
+            if alias.name == '*':
+                continue
+            binding = alias.asname or alias.name
+            chain = resolver.trace(resolved_module, alias.name) if resolved_module is not None else None
+            submodule = _unique(index, {name + '.' + alias.name for name in candidates})
+            if chain and submodule is not None:
+                rejected.add(binding)
+            elif chain:
+                possible[binding].append((binding, chain))
+            elif submodule is not None:
+                exports = resolver.exported_names(submodule)
+                if len(exports) == 1:
+                    name, via = exports[0]
+                    possible[binding].append((binding + '.' + name, via))
+                else:
+                    rejected.add(binding)
+            else:
+                rejected.add(binding)
+    else:
+        for alias in stmt.names:
+            binding = alias.asname or alias.name.split('.')[0]
+            resolved = _unique(index, {alias.name})
+            exports = resolver.exported_names(resolved) if resolved is not None else []
+            if len(exports) == 1:
+                name, via = exports[0]
+                prefix = binding if alias.asname else alias.name
+                possible[binding].append((prefix + '.' + name, via))
+            else:
+                rejected.add(binding)
+    return possible, rejected
+
+
 class _Calls(ast.NodeVisitor):
     def __init__(self, path: str, bindings: dict[str, str], target: str, symbol: str,
-                 provenance: dict[str, tuple[str, ...]] | None = None) -> None:
+                 provenance: dict[str, tuple[str, ...]] | None = None,
+                 index: dict[str, set[str]] | None = None,
+                 resolver: _ExportProvenance | None = None) -> None:
         self.path = path
         self.bindings = bindings
         self.target = target
         self.symbol = symbol
         self.provenance = provenance or {}
+        self.index = index or {}
+        self.resolver = resolver
         self.scopes: list[set[str]] = []
+        # Only imports directly in a function body are eligible. Imports in
+        # branches, nested definitions and class bodies are not promoted.
+        self.local_imports: list[dict[str, tuple[str, tuple[str, ...], int]]] = []
         self.references: list[dict] = []
         self.abstentions: list[dict] = []
         self.truncated = False
 
     def _enter(self, node: ast.AST, body: list[ast.stmt]) -> None:
+        local: dict[str, tuple[str, tuple[str, ...], int]] = {}
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and self.resolver:
+            proposed: dict[str, list[tuple[str, tuple[str, ...], int]]] = defaultdict(list)
+            excluded = _Bindings()
+            for stmt in body:
+                if isinstance(stmt, (ast.Import, ast.ImportFrom)):
+                    options, rejected = _import_candidates(self.path, stmt, self.index, self.resolver)
+                    excluded.names.update(rejected)
+                    for name, entries in options.items():
+                        proposed[name].extend((expr, chain, stmt.lineno) for expr, chain in entries)
+                else:
+                    excluded.visit(stmt)
+            local = {name: entries[0] for name, entries in proposed.items()
+                     if len(entries) == 1 and name not in excluded.names}
         self.scopes.append(_scope_bindings(node))
+        self.local_imports.append(local)
         for stmt in body:
             if self.truncated:
                 break
             self.visit(stmt)
+        self.local_imports.pop()
         self.scopes.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
@@ -233,7 +299,9 @@ class _Calls(ast.NodeVisitor):
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
         self.scopes.append(_scope_bindings(node))
+        self.local_imports.append({})
         self.visit(node.body)
+        self.local_imports.pop()
         self.scopes.pop()
 
     def visit_ListComp(self, node: ast.ListComp) -> None:
@@ -246,21 +314,31 @@ class _Calls(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> None:
         expression = _dotted(node.func)
         head = expression.split('.')[0]
-        if expression and self.bindings.get(head) == expression:
+        local = self.local_imports[-1].get(head) if self.local_imports else None
+        chain: tuple[str, ...] | None = None
+        if expression and local and local[0] == expression:
+            if node.lineno > local[2]:
+                chain = local[1]
+            elif len(self.abstentions) < MAX_ABSTENTIONS:
+                self.abstentions.append({'path': self.path, 'line': node.lineno,
+                                         'expression': expression, 'reason': 'call_not_after_local_import'})
+        elif expression and self.bindings.get(head) == expression:
             if any(head in scope for scope in self.scopes):
                 if len(self.abstentions) < MAX_ABSTENTIONS:
                     self.abstentions.append({'path': self.path, 'line': node.lineno,
                                              'expression': expression, 'reason': 'lexical_binding_or_shadowing'})
             else:
-                self.references.append({
-                    'path': self.path, 'line': node.lineno, 'expression': expression,
-                    'symbol': self.symbol, 'target_path': self.target,
-                    'classification': 'python_ast_import_bound_call_candidate',
-                    'provenance_modules': list(self.provenance.get(head, ())),
-                })
-                if len(self.references) >= MAX_CALLS:
-                    self.truncated = True
-                    return
+                chain = self.provenance.get(head, ())
+        if chain is not None:
+            self.references.append({
+                'path': self.path, 'line': node.lineno, 'expression': expression,
+                'symbol': self.symbol, 'target_path': self.target,
+                'classification': 'python_ast_import_bound_call_candidate',
+                'provenance_modules': list(chain),
+            })
+            if len(self.references) >= MAX_CALLS:
+                self.truncated = True
+                return
         self.generic_visit(node)
 
 
@@ -313,53 +391,19 @@ def python_symbol_impact(root: Path, changed_path: str, symbol: str) -> dict:
         possible: dict[str, list[tuple[str, tuple[str, ...]]]] = defaultdict(list)
         non_import_bindings = _Bindings()
         for stmt in tree.body:
-            if isinstance(stmt, ast.ImportFrom):
-                candidates = _from_candidates(path, stmt)
-                resolved_module = _unique(index, candidates)
-                for alias in stmt.names:
-                    if alias.name == '*':
-                        continue
-                    binding = alias.asname or alias.name
-                    chain = (provenance_resolver.trace(resolved_module, alias.name)
-                             if resolved_module is not None else None)
-                    submodule = _unique(index, {name + '.' + alias.name for name in candidates})
-                    # A package may expose both a submodule and an attribute of
-                    # the same name. Do not guess which object Python binds.
-                    if chain and submodule is not None:
-                        non_import_bindings.names.add(binding)
-                    elif chain:
-                        possible[binding].append((binding, chain))
-                    elif submodule is not None:
-                        exports = provenance_resolver.exported_names(submodule)
-                        if len(exports) == 1:
-                            name, via = exports[0]
-                            possible[binding].append((binding + '.' + name, via))
-                        else:
-                            non_import_bindings.names.add(binding)
-                    else:
-                        non_import_bindings.names.add(binding)
-            elif isinstance(stmt, ast.Import):
-                for alias in stmt.names:
-                    binding = alias.asname or alias.name.split('.')[0]
-                    resolved = _unique(index, {alias.name})
-                    exports = (provenance_resolver.exported_names(resolved)
-                               if resolved is not None else [])
-                    if len(exports) == 1:
-                        name, via = exports[0]
-                        prefix = binding if alias.asname else alias.name
-                        possible[binding].append((prefix + '.' + name, via))
-                    else:
-                        non_import_bindings.names.add(binding)
+            if isinstance(stmt, (ast.Import, ast.ImportFrom)):
+                options, rejected = _import_candidates(path, stmt, index, provenance_resolver)
+                non_import_bindings.names.update(rejected)
+                for name, entries in options.items():
+                    possible[name].extend(entries)
             else:
                 non_import_bindings.visit(stmt)
 
         bindings = {binding: entries[0][0] for binding, entries in possible.items()
                     if len(entries) == 1 and binding not in non_import_bindings.names}
-        if not bindings:
-            continue
         provenance = {binding: entries[0][1] for binding, entries in possible.items()
                       if binding in bindings}
-        visitor = _Calls(path, bindings, changed_path, symbol, provenance)
+        visitor = _Calls(path, bindings, changed_path, symbol, provenance, index, provenance_resolver)
         for stmt in tree.body:
             if visitor.truncated:
                 break
@@ -383,7 +427,9 @@ def python_symbol_impact(root: Path, changed_path: str, symbol: str) -> dict:
         'limitations': [
             'Only top-level Python functions/classes and syntactically import-bound call sites are indexed.',
             'This is not runtime reachability, verified invocation, or a compiler/LSP symbol graph.',
-            'Nested imports, star imports, dynamic exports, conditional reexports, monkey-patching, dynamic calls and comprehensions may be missed.',
+            'Only unconditional direct function-body imports are considered; conditional, class-body, nested-definition and star imports may be missed.',
+            'Function-local imports require calls on later lines and no competing lexical bindings; closures and comprehensions remain conservative.',
+            'Dynamic exports, conditional reexports, monkey-patching and dynamic calls are not resolved.',
             'Only unambiguous, unconditional, bounded module-level from-import reexport chains are traced.',
             'Lexical shadowing conservatively abstains; missing candidates do not establish isolation.',
         ],

@@ -140,3 +140,7 @@ Results include source paths, lines, expressions, shadowed-call abstentions, war
 ## v1.2.0 — bounded Python reexport provenance
 
 `symbol-impact` now traces uniquely resolved, unconditional top-level Python `from` reexports, including aliased package barrels, and attaches `provenance_modules` to each call candidate. Cyclic, conditional, duplicate, shadowed and dynamically constructed exports are conservatively omitted. This is a static AST provenance hypothesis, not verified runtime symbol identity or call reachability. See [graph limitations](docs/GRAPH.md).
+
+## v1.3.0 — conservative function-local Python import candidates
+
+`symbol-impact` now identifies calls following **unconditional direct function-body imports** (including aliased, module-qualified, relative, and proven reexport bindings). This intentionally narrow extension requires a unique import binding with no competing local assignments, parameters, deletions, or conditional imports. Calls before the import, within nested closures, or in comprehensions are not promoted. Static candidates do not establish runtime invocation; absent candidates do not prove isolation.

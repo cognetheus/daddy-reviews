@@ -91,3 +91,7 @@ Bindings redefined at module level or shadowed inside a function/class/lambda ar
 ## v1.2.0: bounded Python reexport provenance
 
 `symbol-impact` can now follow a chain of unconditional, uniquely resolved top-level Python `from module import name [as alias]` reexports, including package `__init__.py` barrels. Candidate call sites expose `provenance_modules` in import order, terminating at the selected top-level definition. Cycles, ambiguous or duplicate exports, module-level rebinding, and conditional/dynamic exports abstain; a selected target symbol with conflicting top-level bindings is rejected. The traversal is bounded to eight hops. This is source-derived AST evidence, **not** proof that imports execute successfully, a call runs, or a symbol is reachable at runtime. A missing reference does not establish isolation.
+
+## v1.3.0: function-local Python imports
+
+`symbol-impact` now checks direct unconditional imports within functions, including aliased imports and proven reexport chains. It only reports a call if the imported binding is unique, is not rebound or shadowed elsewhere in the same function, and appears on a later source line than the import. Nested closures, imports in control-flow branches, class-local imports, comprehension scopes and calls on the import's own line abstain. This is an intentionally incomplete static approximation; no execution or Python runtime import semantics are verified.
