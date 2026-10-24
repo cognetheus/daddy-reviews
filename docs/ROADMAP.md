@@ -58,3 +58,8 @@ Added opt-in, validated, source-hash-based persistent module-graph reuse for `gr
 ### Phase 2 incremental edge-index increment (v1.0.0)
 
 Opt-in persistent cache now reuses per-file resolved import edges when source hashes match and the indexed path/configuration resolution context is unchanged. Changed files alone are reparsed; file additions/removals and TS/JS config edits trigger conservative full re-resolution. Reports expose parsed/reused counts, with corrupt/legacy caches rebuilt and concurrent mutations guarded by a second fingerprint. Next: true per-file syntax artifact storage for path/config-change reuse, compiler/SCIP symbol indexing, and contract-level data-flow tracing.
+
+
+### Phase 2 Python symbol-reference candidate increment (v1.1.0)
+
+Added opt-in read-only `symbol-impact` for top-level Python function/class call candidates, using AST import binding and unique local module resolution. Supports aliased imports, module-qualified calls, and relative imports. Conservative lexical shadowing and ambiguous module names abstain. This is **not** compiler/LSP symbol identity, actual runtime invocation, or complete symbol reachability. Next: import-binding provenance under nested scopes, verified reexport handling, compiler-backed TypeScript symbols, and human-evaluated call-reference precision.

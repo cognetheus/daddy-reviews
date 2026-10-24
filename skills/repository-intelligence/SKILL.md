@@ -53,3 +53,8 @@ Capture `daddy-reviews graph --root REVISION_WORKTREE > graph.json` separately f
 ## Cache-assisted graph inspection (v0.9.0)
 
 For repeated inspections of an unchanged working tree, an explicitly requested local cache can avoid reparsing: `daddy-reviews graph --root . --cache-file /tmp/daddy-graph-cache.json`. Inspect the returned `cache.status`; `bypassed`, `volatile`, and `write_failed` are not cache hits. This is **whole-tree invalidation**: changed source/config always triggers a complete rebuild. Do not use cache presence, source hashes, or static edges as proof of Git revision authenticity, functional equivalence, or runtime reachability. Do not write caches unless the user/workflow permits local file writes.
+
+
+## Python symbol-level reconnaissance (v1.1.0)
+
+For a changed top-level Python function/class, run `daddy-reviews symbol-impact --root . --changed path/to/module.py --symbol function_name` after module graph inspection. Inspect each AST-linked call candidate in its enclosing scope and confirm import resolution, actual runtime binding, call behavior and tests before claiming impact. Rebinding, shadowing, nested imports, reexports and dynamic invocation can invalidate or hide matches. No positive or negative result is proof of runtime reachability; do not assign severity from these links alone.

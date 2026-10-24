@@ -125,3 +125,14 @@ Output includes `cache.status`: `stored`, `hit`, `bypassed`, `volatile`, or `wri
 ## v1.0.0 — incremental module-edge indexing
 
 With `--cache-file`, unchanged source modules reuse their previously resolved import edges after a source-only change. New/removed paths or changed tsconfig/jsconfig files force full re-resolution. Cache metadata now includes `parsed_files` and `reused_files` counts. This is a conservative static import-edge optimization, **not** full AST/symbol indexing or verified runtime reachability. See [graph limitations](docs/GRAPH.md).
+
+
+## v1.1.0 — bounded Python symbol-level call candidates
+
+A new read-only `symbol-impact` command identifies **syntactic import-bound calls** to a selected top-level Python function or class. It resolves unambiguous local absolute/relative module imports, aliases, and module-qualified expressions; it abstains on ambiguous module paths, rebinding and lexical shadowing. This is narrower than module-level impact, but **not** a full symbol resolver or runtime call graph.
+
+```bash
+daddy-reviews symbol-impact --root . --changed src/pkg/service.py --symbol calculate
+```
+
+Results include source paths, lines, expressions, shadowed-call abstentions, warnings and explicit limitations. Nested imports, star imports, reexports, dynamic behavior, and comprehension calls are not exhaustively resolved. Missing candidates **never** prove no consumers. No automatic findings or severity assignments are generated.

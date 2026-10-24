@@ -15,11 +15,12 @@ from .graph import build_graph, impact, import_cycles
 from .catalog import catalog, find_capabilities
 from .graph_delta import GraphSnapshotError, compare_snapshots, read_snapshot
 from .graph_cache import GraphCacheError, graph_with_cache
+from .python_symbols import SymbolImpactError, python_symbol_impact
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--task',default='Review pull request')
     parser.add_argument('--changed',nargs='*',default=[])
@@ -31,6 +32,7 @@ def main(argv=None):
     parser.add_argument('--report-file',help='Existing JSON candidate review report to re-check')
     parser.add_argument('--dataset',default='evals/baseline.json',help='JSON fixtures for syntax candidate evaluation')
     parser.add_argument('--query',help='Capability name or related terms')
+    parser.add_argument('--symbol',help='Top-level Python function/class name for symbol-impact')
     parser.add_argument('--max-depth',type=int,default=3,help='Maximum reverse dependency hops')
     parser.add_argument('--before-graph',help='Previously exported graph JSON snapshot')
     parser.add_argument('--after-graph',help='Later exported graph JSON snapshot')
@@ -69,6 +71,13 @@ def main(argv=None):
               'impact':impact(graph,args.changed,max_depth=args.max_depth) if args.changed else None}
         if cache_info is not None:
             data['cache']=cache_info
+    elif args.command=='symbol-impact':
+        if len(args.changed) != 1 or not args.symbol:
+            parser.error('symbol-impact requires exactly one --changed PATH and --symbol NAME')
+        try:
+            data=python_symbol_impact(root,args.changed[0],args.symbol)
+        except SymbolImpactError as exc:
+            parser.error(str(exc))
     elif args.command=='graph-diff':
         if not args.before_graph or not args.after_graph:
             parser.error('graph-diff requires --before-graph and --after-graph')
