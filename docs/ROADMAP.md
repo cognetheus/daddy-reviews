@@ -71,3 +71,7 @@ Added opt-in read-only `symbol-impact` for top-level Python function/class call 
 ### Phase 2 function-local Python import candidates (v1.3.0)
 
 Added conservative function-local import provenance for direct unconditional function-body imports and calls on subsequent source lines. Shared import resolution ensures the same ambiguity and reexport abstentions as module-level references. Conditional imports, lexical conflicts, closures, class-local imports and comprehensions remain unverified. Next: compiler-backed TypeScript references, human-labelled precision calibration and cross-layer contract tracing.
+
+### Phase 2 JS/TS named-import symbol candidates (v1.4.0)
+
+`symbol-impact` now dispatches to a bounded JS/TS lexical adapter for selected top-level named exports. It recognizes direct named import aliases and standalone tsconfig/jsconfig path candidates, and conservatively abstains on possible lexical rebinding, duplicate import bindings, type-only imports, reexports, default/namespace imports, and unsupported targets. Results are **syntactic investigation leads**, not TypeScript compiler symbols, verified calls, or defect findings. Next: opt-in TypeScript compiler/SCIP integration with build-context provenance, cross-layer contract tracing, and human-labeled precision evaluation.

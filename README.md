@@ -144,3 +144,13 @@ Results include source paths, lines, expressions, shadowed-call abstentions, war
 ## v1.3.0 — conservative function-local Python import candidates
 
 `symbol-impact` now identifies calls following **unconditional direct function-body imports** (including aliased, module-qualified, relative, and proven reexport bindings). This intentionally narrow extension requires a unique import binding with no competing local assignments, parameters, deletions, or conditional imports. Calls before the import, within nested closures, or in comprehensions are not promoted. Static candidates do not establish runtime invocation; absent candidates do not prove isolation.
+
+## v1.4.0 — JS/TS direct named-import call candidates
+
+`symbol-impact` now accepts JS/TS target files with top-level named exports, in addition to Python. It resolves direct named imports and standalone tsconfig/jsconfig aliases where unambiguous, then reports syntactic call candidates while abstaining on possible consumer-file shadowing. No compiler, runtime, package installation, or repository code execution is involved.
+
+```bash
+daddy-reviews symbol-impact --root . --changed src/lib/math.ts --symbol calculate
+```
+
+This is **not** TypeScript compiler-aware symbol resolution. Reexports, default/namespace imports, type-only imports, complex scopes and runtime dispatch remain unsupported; no candidate becomes an automatic finding. See [graph limitations](docs/GRAPH.md).

@@ -58,3 +58,7 @@ For repeated inspections of an unchanged working tree, an explicitly requested l
 ## Python symbol-level reconnaissance (v1.1.0)
 
 For a changed top-level Python function/class, run `daddy-reviews symbol-impact --root . --changed path/to/module.py --symbol function_name` after module graph inspection. Inspect each AST-linked call candidate in its enclosing scope and confirm import resolution, actual runtime binding, call behavior and tests before claiming impact. Rebinding, shadowing, nested imports, reexports and dynamic invocation can invalidate or hide matches. No positive or negative result is proof of runtime reachability; do not assign severity from these links alone.
+
+## JS/TS direct symbol candidate routing (v1.4.0)
+
+For a named JS/TS export, `daddy-reviews symbol-impact --root . --changed src/lib/math.ts --symbol calculate` provides direct named-import call syntax candidates and conservative shadowing abstentions. The tool does not run a TypeScript compiler or prove symbol identity; review aliases, reexports, type-only imports, dynamic behavior and build resolution manually. Do not infer a defect or isolated module from the candidate count.

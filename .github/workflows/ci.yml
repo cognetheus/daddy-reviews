@@ -36,3 +36,4 @@ jobs:
           python -c "import json; p=json.load(open('/tmp/daddy-reviews-second.json')); assert p['cache']['status']=='hit' and p['cache']['parsed_files']==0"
       - run: python -m daddy_reviews.cli symbol-impact --root . --changed src/daddy_reviews/graph.py --symbol build_graph > /dev/null
       - run: pytest -q tests/test_python_reexports.py
+      - run: pytest -q tests/test_js_symbols.py

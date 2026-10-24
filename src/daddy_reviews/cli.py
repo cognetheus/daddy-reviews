@@ -16,6 +16,8 @@ from .catalog import catalog, find_capabilities
 from .graph_delta import GraphSnapshotError, compare_snapshots, read_snapshot
 from .graph_cache import GraphCacheError, graph_with_cache
 from .python_symbols import SymbolImpactError, python_symbol_impact
+from .js_symbols import JSSymbolImpactError, js_symbol_impact
+from .js_graph import EXTENSIONS
 
 
 def main(argv=None):
@@ -32,7 +34,7 @@ def main(argv=None):
     parser.add_argument('--report-file',help='Existing JSON candidate review report to re-check')
     parser.add_argument('--dataset',default='evals/baseline.json',help='JSON fixtures for syntax candidate evaluation')
     parser.add_argument('--query',help='Capability name or related terms')
-    parser.add_argument('--symbol',help='Top-level Python function/class name for symbol-impact')
+    parser.add_argument('--symbol',help='Top-level Python function/class or JS/TS named export for symbol-impact')
     parser.add_argument('--max-depth',type=int,default=3,help='Maximum reverse dependency hops')
     parser.add_argument('--before-graph',help='Previously exported graph JSON snapshot')
     parser.add_argument('--after-graph',help='Later exported graph JSON snapshot')
@@ -75,8 +77,10 @@ def main(argv=None):
         if len(args.changed) != 1 or not args.symbol:
             parser.error('symbol-impact requires exactly one --changed PATH and --symbol NAME')
         try:
-            data=python_symbol_impact(root,args.changed[0],args.symbol)
-        except SymbolImpactError as exc:
+            data=(js_symbol_impact(root,args.changed[0],args.symbol)
+                  if Path(args.changed[0]).suffix in EXTENSIONS
+                  else python_symbol_impact(root,args.changed[0],args.symbol))
+        except (SymbolImpactError,JSSymbolImpactError) as exc:
             parser.error(str(exc))
     elif args.command=='graph-diff':
         if not args.before_graph or not args.after_graph:

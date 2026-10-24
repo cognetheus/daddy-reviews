@@ -95,3 +95,9 @@ Bindings redefined at module level or shadowed inside a function/class/lambda ar
 ## v1.3.0: function-local Python imports
 
 `symbol-impact` now checks direct unconditional imports within functions, including aliased imports and proven reexport chains. It only reports a call if the imported binding is unique, is not rebound or shadowed elsewhere in the same function, and appears on a later source line than the import. Nested closures, imports in control-flow branches, class-local imports, comprehension scopes and calls on the import's own line abstain. This is an intentionally incomplete static approximation; no execution or Python runtime import semantics are verified.
+
+## v1.4.0: bounded JS/TS named-import symbol-impact
+
+`daddy-reviews symbol-impact --root . --changed src/utils/math.ts --symbol calculate` now supports JS/TS source paths as well as Python. The JS/TS adapter checks a top-level named `export function`, `export class`, or `export const`, resolves direct named imports with local relative paths or standalone tsconfig/jsconfig alias candidates, and identifies literal `binding(...)` call syntax. It excludes comments and strings, and abstains conservatively on conflicting import bindings or possible lexical shadowing/reassignment anywhere in the consumer file.
+
+It does **not** run TypeScript, Node, npm, or repository scripts; no dependency is installed. It does not handle reexports, default/namespace/type-only imports, type-level references, computed calls, generic-call syntax, compiler symbol identities, runtime reachability, or all JavaScript lexical scopes. Missing references do not prove isolation. This is a deliberately narrow lexical candidate adapter, **not** a compiler-backed analyzer, and must not create automatic severity or PR blockers.
