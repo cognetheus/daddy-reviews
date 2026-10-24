@@ -84,7 +84,14 @@ def _python_target(index: dict[str, set[str]], current: str, imported: str, leve
     return None
 
 
-def build_graph(root: Path) -> dict[str, Any]:
+def build_graph(root: Path, reuse_graph: dict | None = None,
+                reuse_stats: dict | None = None) -> dict[str, Any]:
+    """Re-resolve a full graph, optionally reusing unchanged outgoing import edges.
+
+    Caller MUST verify that indexed path set, TS/JS configs, root and parser
+    version are unchanged before supplying reuse_graph. Reused edges are
+    source-derived candidates, not authenticated runtime call evidence.
+    """
     root = root.resolve()
     if not root.is_dir():
         raise ValueError(f'Not a directory: {root}')
@@ -99,6 +106,13 @@ def build_graph(root: Path) -> dict[str, Any]:
     nodes: list[dict] = []
     edges: list[dict] = []
     edge_keys: set[tuple] = set()
+    previous_nodes = {node['path']: node['sha256'] for node in reuse_graph['nodes']} if reuse_graph else {}
+    previous_edges: dict[str, list[dict]] = {}
+    if reuse_graph:
+        for item in reuse_graph['edges']:
+            previous_edges.setdefault(item['source'], []).append(item)
+    reused_count = 0
+    parsed_count = 0
 
     def edge(source: str, target: str, kind: str, line: int) -> None:
         if source == target:
@@ -116,8 +130,15 @@ def build_graph(root: Path) -> dict[str, Any]:
         except (OSError, UnicodeError):
             warnings.append(f'{rel}: unreadable UTF-8 source')
             continue
+        digest = hashlib.sha256(source.encode('utf-8')).hexdigest()
         nodes.append({'path': rel, 'language': 'python' if file.suffix == PYTHON else 'javascript/typescript',
-                      'sha256': hashlib.sha256(source.encode('utf-8')).hexdigest()})
+                      'sha256': digest})
+        if previous_nodes.get(rel) == digest:
+            reused_count += 1
+            for item in previous_edges.get(rel, []):
+                edge(item['source'], item['target'], item['kind'], item['line'])
+            continue
+        parsed_count += 1
         if file.suffix == PYTHON:
             try:
                 tree = ast.parse(source)
@@ -164,6 +185,8 @@ def build_graph(root: Path) -> dict[str, Any]:
                     kind = 'js_literal_' + found.group(1) if relative else 'js_tsconfig_alias_literal_' + found.group(1)
                     edge(rel, target, kind, source.count('\n', 0, location) + 1)
     warnings.extend(tsresolver.warnings)
+    if reuse_stats is not None:
+        reuse_stats.update({'parsed_files': parsed_count, 'reused_files': reused_count})
     return {'format': 'daddy-reviews-module-graph-v1', 'nodes': sorted(nodes, key=lambda n: n['path']),
             'edges': sorted(edges, key=lambda e: (e['source'], e['target'], e['line'], e['kind'])),
             'warnings': warnings, 'limitations': [

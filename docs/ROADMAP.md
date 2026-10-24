@@ -54,3 +54,7 @@ Added bounded read-only graph snapshot comparison, source-hash and import-edge d
 ### Phase 2 persistent graph-cache increment (v0.9.0)
 
 Added opt-in, validated, source-hash-based persistent module-graph reuse for `graph` and `capabilities`. Unchanged trees avoid graph parsing; source additions/removals/edits and tsconfig/jsconfig changes invalidate the entire graph. No cache is used on incomplete scans, concurrent source mutations, or invalid snapshots. This is **whole-tree cache invalidation**, not incremental per-file indexing. Next: per-file parse artifacts and dependency-aware invalidation, native compiler/SCIP adapters, and verified symbol references.
+
+### Phase 2 incremental edge-index increment (v1.0.0)
+
+Opt-in persistent cache now reuses per-file resolved import edges when source hashes match and the indexed path/configuration resolution context is unchanged. Changed files alone are reparsed; file additions/removals and TS/JS config edits trigger conservative full re-resolution. Reports expose parsed/reused counts, with corrupt/legacy caches rebuilt and concurrent mutations guarded by a second fingerprint. Next: true per-file syntax artifact storage for path/config-change reuse, compiler/SCIP symbol indexing, and contract-level data-flow tracing.

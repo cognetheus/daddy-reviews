@@ -121,3 +121,7 @@ daddy-reviews capabilities --root . --cache-file /tmp/daddy-graph-cache.json --q
 ```
 
 Output includes `cache.status`: `stored`, `hit`, `bypassed`, `volatile`, or `write_failed`. Source and config files are hashed on every invocation; no source is executed. Cache entries are schema-validated and reject symlink destinations. Cache writes are atomic. Incomplete scans or a changing repository disable persistence. Keep the cache outside the repository (or gitignore it); it is not a trusted Git revision identity. The default commands do not write files. See [graph documentation](docs/GRAPH.md).
+
+## v1.0.0 — incremental module-edge indexing
+
+With `--cache-file`, unchanged source modules reuse their previously resolved import edges after a source-only change. New/removed paths or changed tsconfig/jsconfig files force full re-resolution. Cache metadata now includes `parsed_files` and `reused_files` counts. This is a conservative static import-edge optimization, **not** full AST/symbol indexing or verified runtime reachability. See [graph limitations](docs/GRAPH.md).

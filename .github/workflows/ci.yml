@@ -30,3 +30,7 @@ jobs:
           python -m daddy_reviews.cli graph --root . --cache-file /tmp/daddy-reviews-cache.json > /dev/null
           python -m daddy_reviews.cli graph --root . --cache-file /tmp/daddy-reviews-cache.json > /dev/null
           python -m daddy_reviews.cli capabilities --root . --cache-file /tmp/daddy-reviews-cache.json --query review > /dev/null
+      - run: |
+          python -m daddy_reviews.cli graph --root . --cache-file /tmp/daddy-reviews-incremental.json > /tmp/daddy-reviews-first.json
+          python -m daddy_reviews.cli graph --root . --cache-file /tmp/daddy-reviews-incremental.json > /tmp/daddy-reviews-second.json
+          python -c "import json; p=json.load(open('/tmp/daddy-reviews-second.json')); assert p['cache']['status']=='hit' and p['cache']['parsed_files']==0"
