@@ -53,6 +53,19 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
+## R7.03 — Python semantic analysis (v1.10.0)
+
+**New:** snapshot-bound Python AST semantic reference candidates, covering unambiguous import bindings, relative modules, aliases, re-export chains, constructors, async functions, decorators, class inheritance, and method calls on conservatively inferred typed receivers. Dynamic, shadowed or competing bindings abstain rather than generating unsupported references.
+
+```bash
+daddy-reviews py-semantic --root . --changed src/auth.py --symbol authorize
+daddy-reviews py-semantic --root . --changed src/services.py --symbol Client.submit
+```
+
+All results have source hashes and locations through the R7.01 context contracts, and remain **AST candidates, not runtime-proven calls or LSP results**. No Python packages or project execution are required.
+
+See [R7.03 technical details](docs/R7_PYTHON_SEMANTICS.md).
+
 ## R7.02 — Compiler-backed TypeScript/JavaScript analysis (v1.9.0)
 
 **New:** read-only TypeScript **6.0.3 compiler API** semantic references with verified snapshot provenance. Resolves named imports, aliases, barrel re-exports, class constructors/methods, interfaces, type annotations and inheritance without relying on identifier spelling alone. The existing lexical indexing remains available separately.
