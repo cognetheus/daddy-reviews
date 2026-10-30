@@ -113,7 +113,7 @@ function run(req) {
   }
   if (!sourceNames.has(req.target.path)) return finish("unresolved", "Target is not in source snapshot");
   if (sourceNames.size === 0) return finish("unresolved", "No indexed TS/JS sources");
-  const ownLib = path.resolve(path.dirname(require.resolve("typescript")), "lib");
+  const ownLib = path.dirname(require.resolve("typescript"));
   const libAllow = file => {
     const name = path.basename(file);
     return path.dirname(file) === ownLib && /^lib(?:\.[\w.-]+)?\.d\.ts$/.test(name);
