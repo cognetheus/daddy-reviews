@@ -12,6 +12,7 @@ from .js_graph import js_changed_symbols, js_import_call_candidates
 from .graph import build_graph, impact, import_cycles
 from .triage import assess_review_tier
 from .standards import evaluate_standards
+from .adjudication import adjudicate
 
 
 def review_patch(root: Path, patch: str, task: str='Review pull request') -> dict:
@@ -46,7 +47,7 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
         'possible_consumers':refs, 'import_linked_calls':direct_calls, 'existing_test_candidates':tests,
         'reuse_candidates':reuse, 'module_dependency_impact':dependency_impact,
         'changed_module_cycle_candidates':changed_cycles, 'graph_warnings':module_graph['warnings'],
-        'findings':findings,
+        'findings':findings, 'adjudication':adjudicate(findings),
         'disposition':'no_verified_blockers' if not any(f['disposition']=='block' for f in findings) else 'requires_attention',
         'limitations':[
           'No automatic functional or architectural correctness guarantee.',
