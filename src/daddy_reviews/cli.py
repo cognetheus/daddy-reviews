@@ -20,12 +20,17 @@ from .js_symbols import JSSymbolImpactError, js_symbol_impact
 from .js_graph import EXTENSIONS
 from .standards import evaluate_standards
 from .adjudication import adjudicate
+from .agents import AgentRuntimeError, local_ollama_provider, review_with_specialists
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review'])
     parser.add_argument('--root',default='.')
+    parser.add_argument('--model',help='Opt-in local Ollama model for ai-review')
+    parser.add_argument('--ollama-url',default='http://127.0.0.1:11434',help='Local Ollama origin (loopback only)')
+    parser.add_argument('--agent-timeout',type=float,default=30.0,help='Per-specialist timeout, seconds')
+    parser.add_argument('--agent-parallel',type=int,default=3,help='Maximum parallel specialists, 1..3')
     parser.add_argument('--task',default='Review pull request')
     parser.add_argument('--changed',nargs='*',default=[])
     parser.add_argument('--base',default='HEAD~1',help='PR target/base commit or ref')
@@ -118,6 +123,16 @@ def main(argv=None):
             parser.error(str(exc))
     elif args.command=='standards':
         data=evaluate_standards(root,args.changed)
+    elif args.command=='ai-review':
+        if not args.model:
+            parser.error('ai-review requires --model and explicit local inference opt-in')
+        try:
+            patch=(Path(args.diff_file).read_text(encoding='utf-8')
+                   if args.diff_file else git_diff(root,args.base,args.head))
+            provider=local_ollama_provider(args.model,args.ollama_url,args.agent_timeout)
+            data=review_with_specialists(root,patch,provider,args.task,args.agent_parallel)
+        except (DiffError,AgentRuntimeError,OSError,UnicodeError) as exc:
+            parser.error(str(exc))
     elif args.command=='review':
         try:
             patch=Path(args.diff_file).read_text(encoding='utf-8') if args.diff_file else git_diff(root,args.base,args.head)
@@ -130,4 +145,6 @@ def main(argv=None):
               'findings':[x.to_dict() for x in findings],
               'notice':'Static candidates are unverified. Empty results do not imply defect-free code.'}
     print(json.dumps(data,indent=2))
+    if args.command=='ai-review' and data['status'] != 'complete':
+        raise SystemExit(2)
 if __name__=='__main__':main()
