@@ -127,6 +127,50 @@ def _scope_blocked(stmts, args=None):
     return collector.names
 
 
+class _StoreCounts(ast.NodeVisitor):
+    """Count binding writes in a lexical scope including conditional branches.
+
+    Do not attribute writes inside nested functions/classes or comprehensions
+    to their parent's scope.
+    """
+
+    def __init__(self):
+        self.counts = defaultdict(int)
+
+    def visit_Name(self, node):
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            self.counts[node.id] += 1
+
+    def visit_FunctionDef(self, node):
+        self.counts[node.name] += 1
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_ClassDef(self, node):
+        self.counts[node.name] += 1
+
+    def visit_Import(self, node):
+        for alias in node.names:
+            self.counts[alias.asname or alias.name.split(".")[0]] += 1
+
+    def visit_ImportFrom(self, node):
+        for alias in node.names:
+            if alias.name != "*":
+                self.counts[alias.asname or alias.name] += 1
+
+    def visit_ExceptHandler(self, node):
+        if node.name:
+            self.counts[node.name] += 1
+        self.generic_visit(node)
+
+    def visit_ListComp(self, node):
+        pass
+
+    visit_SetComp = visit_ListComp
+    visit_DictComp = visit_ListComp
+    visit_GeneratorExp = visit_ListComp
+
+
 def _local_imports(stmts, path, index, trees, target_path, target_name):
     proposed = defaultdict(list)
     for stmt in stmts:
@@ -254,8 +298,12 @@ class _References(ast.NodeVisitor):
                 for dest in destinations:
                     if isinstance(dest, ast.Name):
                         assigned[dest.id].append(stmt)
+        counter = _StoreCounts()
+        for stmt in statements:
+            counter.visit(stmt)
+        arg_names = {arg.arg for arg in ast.walk(args) if isinstance(arg, ast.arg)} if args else set()
         for name, defs in assigned.items():
-            if len(defs) != 1:
+            if len(defs) != 1 or counter.counts[name] != 1 or name in arg_names:
                 continue
             node = defs[0]
             value = node.value
