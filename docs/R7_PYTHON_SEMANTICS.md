@@ -35,6 +35,7 @@ No new Python dependencies, shell execution, Python imports from the reviewed re
 | `member_call_candidate` | Method call on an unambiguously imported constructor-assigned or typed receiver |
 | `decorator_reference` | Imported decorator applied to another function |
 | `heritage_reference` | Imported base class referenced in class declaration |
+| `type_annotation_candidate` | Imported class referenced in function arguments, returns, or annotated assignments |
 
 ## Precision boundaries and abstentions
 
