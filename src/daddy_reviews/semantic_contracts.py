@@ -19,7 +19,7 @@ FORMAT = "daddy-reviews-semantic-snapshot-v1"
 MAX_FILES = 4000
 MAX_FILE_BYTES = 350_000
 MAX_TOTAL_BYTES = 24_000_000
-MAX_MANIFEST_BYTES = 2_000_000
+MAX_MANIFEST_BYTES = 8_000_000
 CONFIG = {"tsconfig.json", "jsconfig.json", "pyproject.toml", "go.mod", "pom.xml"}
 DIGEST = re.compile(r"[a-f0-9]{64}\Z")
 ORIGINS = {"compiler", "language_server", "ast", "lexical", "manual", "test", "runtime"}
@@ -83,9 +83,20 @@ def capture_worktree(root: Path) -> dict:
     files: list[dict] = []
     warnings: list[str] = []
     total = 0
-    for directory, dirs, names in os.walk(root, followlinks=False):
-        dirs[:] = sorted(d for d in dirs if d not in EXCLUDE
-                         and not (Path(directory) / d).is_symlink())
+    def on_walk_error(error: OSError):
+        warnings.append("Source directory could not be traversed")
+
+    for directory, dirs, names in os.walk(root, followlinks=False, onerror=on_walk_error):
+        next_dirs = []
+        for d in sorted(dirs):
+            if d in EXCLUDE:
+                continue
+            candidate = Path(directory) / d
+            if candidate.is_symlink():
+                warnings.append(f"{candidate.relative_to(root).as_posix()}: symlinked directory not followed")
+            else:
+                next_dirs.append(d)
+        dirs[:] = next_dirs
         for name in sorted(names):
             file = Path(directory) / name
             if file.suffix not in SOURCES and name not in CONFIG:
@@ -236,6 +247,13 @@ class SemanticReference:
     location: SourceSpan
     target_location: SourceSpan | None = None
 
+    def __post_init__(self):
+        if (not isinstance(self.target_name, str) or
+                not 1 <= len(self.target_name) <= 255 or
+                not isinstance(self.relationship, str) or
+                not 1 <= len(self.relationship) <= 120):
+            raise SemanticContractError("Invalid reference target or relationship")
+
 
 @dataclass(frozen=True)
 class ContextExcerpt:
@@ -259,6 +277,10 @@ def context_bundle(snapshot: dict, symbols: list[SemanticSymbol] | None = None,
     symbols, references, excerpts = symbols or [], references or [], excerpts or []
     if len(symbols) > 500 or len(references) > 2000 or len(excerpts) > 100:
         raise SemanticContractError("Evidence collection exceeds budget")
+    if (any(not isinstance(s, SemanticSymbol) for s in symbols) or
+            any(not isinstance(r, SemanticReference) for r in references) or
+            any(not isinstance(e, ContextExcerpt) for e in excerpts)):
+        raise SemanticContractError("Evidence records must use validated contracts")
     files = {f["path"]: f["sha256"] for f in snapshot["files"]}
     spans = [s.location for s in symbols] + [r.location for r in references]
     spans += [r.target_location for r in references if r.target_location is not None]
