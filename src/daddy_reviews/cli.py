@@ -28,15 +28,17 @@ from .calibration import compare_quality
 from .semantic_contracts import SemanticContractError, capture_worktree, read_snapshot as read_source_snapshot, verify_worktree
 from .ts_semantic import TypeScriptSemanticError, index_typescript
 from .py_semantic import PythonSemanticError, index_python
+from .compiled_semantic import CompiledSemanticError, index_compiled
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
     parser.add_argument('--ts-timeout',type=float,default=20,help='Compiler process deadline, seconds')
+    parser.add_argument('--compiled-timeout',type=float,default=30,help='Java/C# compiler deadline, seconds')
     parser.add_argument('--baseline-dataset',help='Baseline human-labeled reviewer predictions')
     parser.add_argument('--candidate-dataset',help='Candidate predictions on identical case labels')
     parser.add_argument('--pr',type=int,help='GitHub pull request number')
@@ -86,6 +88,15 @@ def main(argv=None):
         try:
             data=verify_worktree(root,read_source_snapshot(Path(args.snapshot_file)))
         except (SemanticContractError,OSError) as exc:
+            parser.error(str(exc))
+    elif args.command in ('java-semantic','cs-semantic'):
+        if len(args.changed) != 1 or not args.symbol:
+            parser.error('java-semantic/cs-semantic needs one --changed PATH and --symbol NAME')
+        try:
+            state=read_source_snapshot(Path(args.snapshot_file)) if args.snapshot_file else None
+            data=index_compiled(root,'java' if args.command=='java-semantic' else 'csharp',
+                                args.changed[0],args.symbol,state,args.compiled_timeout)
+        except (SemanticContractError,CompiledSemanticError,OSError) as exc:
             parser.error(str(exc))
     elif args.command=='py-semantic':
         if len(args.changed) != 1 or not args.symbol:
@@ -251,5 +262,7 @@ def main(argv=None):
     if args.command=='ts-semantic' and data['status'] != 'complete':
         raise SystemExit(2)
     if args.command=='py-semantic' and data['status'] != 'complete':
+        raise SystemExit(2)
+    if args.command in ('java-semantic','cs-semantic') and data['status'] != 'complete':
         raise SystemExit(2)
 if __name__=='__main__':main()
