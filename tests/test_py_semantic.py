@@ -47,6 +47,7 @@ def test_unconditional_barrel_reexport_chain(tmp_path):
     result = index_python(tmp_path, "pkg/auth.py", "authorize")
     assert result["status"] == "complete", result["warnings"]
     assert ("src/consumer.py", 2, "direct_call_candidate") in positions(result)
+    assert result["references"][0]["provenance_modules"] == [["pkg/__init__.py", "pkg/auth.py"]]
 
 
 def test_module_import_alias_and_unrelated_spelling(tmp_path):
