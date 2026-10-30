@@ -114,9 +114,9 @@ internal static class Program
                     var named=model.GetDeclaredSymbol(cl);
                     if(named is not null)found.Add((named,new LocationDef(rel,cl.GetLocation().GetLineSpan().StartLinePosition.Line+1)));
                 }
-                if(names.Length==2)
+                if(names.Length==2 && cl is TypeDeclarationSyntax typeDecl)
                 {
-                    foreach(var method in cl.Members.OfType<MethodDeclarationSyntax>().Where(x=>x.Identifier.Text==names[1]))
+                    foreach(var method in typeDecl.Members.OfType<MethodDeclarationSyntax>().Where(x=>x.Identifier.Text==names[1]))
                     {
                         var m=model.GetDeclaredSymbol(method);
                         if(m is not null)found.Add((m,new LocationDef(rel,method.GetLocation().GetLineSpan().StartLinePosition.Line+1)));
