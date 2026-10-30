@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "id": "AUTH_001",
+      "title": "Review authorization changes at trust boundaries",
+      "level": "MUST",
+      "state": "advisory",
+      "paths": ["src/auth/*", "src/identity/*", "backend/auth/*"],
+      "source": "docs/SECURITY.md#authorization",
+      "rationale": "Verify changed enforcement paths with tenant and role-negative tests."
+    },
+    {
+      "id": "DATA_001",
+      "title": "Review data migrations and backward compatibility",
+      "level": "MUST",
+      "state": "advisory",
+      "paths": ["migrations/*", "db/migrations/*"],
+      "source": "docs/ARCHITECTURE.md#data-migrations",
+      "rationale": "Inspect rollback, compatibility, irreversible operations and data safety."
+    },
+    {
+      "id": "DOCS_001",
+      "title": "Keep executable setup instructions accurate",
+      "level": "SHOULD",
+      "state": "advisory",
+      "paths": ["README.md", "docs/*"],
+      "source": "docs/CONTRIBUTING.md",
+      "rationale": "Examples should be runnable against the declared version of the project."
+    }
+  ]
+}
