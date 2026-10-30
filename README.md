@@ -53,6 +53,19 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
+## R7.01 — Semantic source contracts (v1.8.0)
+
+First implementation of the deeper repository-intelligence roadmap: **bounded, SHA-256 source manifests and provenance-bound semantic symbol/reference/context contracts**. This is not yet a full language-server index or compiler-backed call graph.
+
+```bash
+# Read-only worktree snapshot
+daddy-reviews snapshot --root . > /tmp/daddy-reviews-source.json
+# Fails with exit 2 if files changed, appeared, disappeared or scan is incomplete
+daddy-reviews snapshot-verify --root . --snapshot-file /tmp/daddy-reviews-source.json
+```
+
+Includes strict path/symlink/size validation, stale context rejection and synthetic cross-language fixture scenarios. See [R7 semantic contracts and acceptance criteria](docs/R7_SEMANTIC_CONTRACTS.md). R7.02 will add TypeScript compiler-backed symbol resolution using these evidence contracts.
+
 ## Install and test
 
 \`\`\`bash
