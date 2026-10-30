@@ -162,32 +162,36 @@ class _References(ast.NodeVisitor):
         self.refs.append({"path": self.path, "line": node.lineno,
                           "relationship": relationship, "provenance_modules": list(via)})
 
-    def _binding(self, value, local, node):
+    def _binding(self, value, local, available_after):
         if value is None:
             return None
         path, imported = value
         # Module aliases are resolved only for imported modules, never through
         # attribute chains guessed from package names.
         if imported is None:
-            return ("module", path, ())
+            return ("module", path, (), available_after)
         provenance = _resolve_export(path, imported, self.target_path,
                                      self.target_name, self.trees, self.index)
         if provenance:
-            return ("target", path, provenance)
+            return ("target", path, provenance, available_after)
         # Method target: consumer imports its owner class, not the method.
         if "." in self.target_name:
             owner = self.target_name.split(".", 1)[0]
             provenance = _resolve_export(path, imported, self.target_path,
                                          owner, self.trees, self.index)
             if provenance:
-                return ("owner", path, provenance)
+                return ("owner", path, provenance, available_after)
         return None
 
     def _resolve(self, expression):
         """Return (binding category, provenance) for a simple identifier."""
         if not isinstance(expression, ast.Name):
             return None
-        return self.env.get(expression.id)
+        value = self.env.get(expression.id)
+        if value and len(value) == 4 and expression.lineno <= value[3]:
+            self._note(expression, "use_before_unconditional_import")
+            return None
+        return value
 
     def _target_expression(self, expression):
         """Resolve direct imported target, module.member, or owner.method."""
@@ -220,12 +224,26 @@ class _References(ast.NodeVisitor):
         blocked = _scope_blocked(statements, args)
         proposed = _local_imports(statements, self.path, self.index, self.trees,
                                   self.target_path, self.target_name)
-        env = {k: v for k, v in previous.items() if k not in blocked}
+        # Any import in this scope shadows the inherited name even when its
+        # resolution is unknown, duplicated, or conditional.
+        imported = {alias.asname or alias.name.split(".")[0]
+                    for stmt in statements if isinstance(stmt, ast.Import)
+                    for alias in stmt.names}
+        imported.update(alias.asname or alias.name
+                        for stmt in statements if isinstance(stmt, ast.ImportFrom)
+                        for alias in stmt.names if alias.name != "*")
+        env = {k: v for k, v in previous.items() if k not in blocked | imported}
         for name, (value, line) in proposed.items():
             if name not in blocked:
-                bound = self._binding(value, name, None)
+                bound = self._binding(value, name, line)
                 if bound:
                     env[name] = bound
+        if args is not None:
+            for arg in ast.walk(args):
+                if isinstance(arg, ast.arg) and isinstance(arg.annotation, ast.Name):
+                    maker = env.get(arg.annotation.id)
+                    if maker and maker[0] == "owner":
+                        env[arg.arg] = ("instance", maker[1], maker[2], 0)
         # Safe constructor/typed receiver inference: one assignment per name,
         # no further stores anywhere in the current scope. It is a candidate.
         assigned = defaultdict(list)
@@ -244,8 +262,10 @@ class _References(ast.NodeVisitor):
             annotation = node.annotation if isinstance(node, ast.AnnAssign) else None
             creator = value.func if isinstance(value, ast.Call) else annotation
             maker = env.get(creator.id) if isinstance(creator, ast.Name) else None
+            if maker and len(maker) == 4 and maker[3] >= node.lineno:
+                maker = None
             if maker and maker[0] == "owner":
-                env[name] = ("instance", maker[1], maker[2])
+                env[name] = ("instance", maker[1], maker[2], node.lineno)
         self.env = env
         self.depth += 1
         for stmt in statements:
