@@ -5,3 +5,5 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+.daddy-rerun.json
+.daddy-review-state*.json
