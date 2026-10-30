@@ -238,6 +238,8 @@ class SemanticSymbol:
             raise SemanticContractError("Invalid semantic symbol name")
         if not isinstance(self.kind, str) or not 1 <= len(self.kind) <= 80:
             raise SemanticContractError("Invalid semantic symbol kind")
+        if not isinstance(self.location, SourceSpan):
+            raise SemanticContractError("Symbol requires a source span")
 
 
 @dataclass(frozen=True)
@@ -251,8 +253,11 @@ class SemanticReference:
         if (not isinstance(self.target_name, str) or
                 not 1 <= len(self.target_name) <= 255 or
                 not isinstance(self.relationship, str) or
-                not 1 <= len(self.relationship) <= 120):
-            raise SemanticContractError("Invalid reference target or relationship")
+                not 1 <= len(self.relationship) <= 120 or
+                not isinstance(self.location, SourceSpan) or
+                (self.target_location is not None and
+                 not isinstance(self.target_location, SourceSpan))):
+            raise SemanticContractError("Invalid reference target, relationship or source span")
 
 
 @dataclass(frozen=True)
@@ -262,7 +267,8 @@ class ContextExcerpt:
     purpose: str
 
     def __post_init__(self):
-        if (not isinstance(self.text, str) or len(self.text) > 12_000
+        if (not isinstance(self.location, SourceSpan) or
+                not isinstance(self.text, str) or len(self.text) > 12_000
                 or not isinstance(self.purpose, str) or not 1 <= len(self.purpose) <= 200):
             raise SemanticContractError("Invalid context excerpt")
 
@@ -281,12 +287,14 @@ def context_bundle(snapshot: dict, symbols: list[SemanticSymbol] | None = None,
             any(not isinstance(r, SemanticReference) for r in references) or
             any(not isinstance(e, ContextExcerpt) for e in excerpts)):
         raise SemanticContractError("Evidence records must use validated contracts")
-    files = {f["path"]: f["sha256"] for f in snapshot["files"]}
+    files = {f["path"]: f for f in snapshot["files"]}
     spans = [s.location for s in symbols] + [r.location for r in references]
     spans += [r.target_location for r in references if r.target_location is not None]
     spans += [e.location for e in excerpts]
     if any(span.snapshot_id != snapshot["snapshot_id"]
-           or files.get(span.path) != span.source_sha256 for span in spans):
+           or span.path not in files
+           or files[span.path]["sha256"] != span.source_sha256
+           or span.end_line > files[span.path]["line_count"] for span in spans):
         raise SemanticContractError("Stale or cross-snapshot evidence must be rejected")
     return {"format": "daddy-reviews-context-bundle-v1",
             "snapshot_id": snapshot["snapshot_id"],
