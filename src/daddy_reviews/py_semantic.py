@@ -450,6 +450,7 @@ def index_python(root: Path, changed_path: str, symbol: str,
     definition = bound_span(state, changed_path, selected.lineno, selected.lineno,
                             "ast", "candidate")
     references, abstentions = [], []
+    provenance = defaultdict(set)
     for path, tree in sorted(trees.items()):
         if path == changed_path:
             continue
@@ -466,6 +467,8 @@ def index_python(root: Path, changed_path: str, symbol: str,
                                   "ast", "candidate")
                 references.append(SemanticReference(symbol, item["relationship"],
                                                     span, definition))
+                provenance[(span.path, span.start_line, item["relationship"])].add(
+                    tuple(item["provenance_modules"]))
             except SemanticContractError:
                 warnings.append(f"{path}: ungrounded reference location")
                 break
@@ -476,8 +479,13 @@ def index_python(root: Path, changed_path: str, symbol: str,
         return _result("stale", "Worktree changed during AST analysis", state, result["target"])
     answer = _result("partial" if warnings else "complete", "", state, result["target"])
     answer["definition"] = asdict(definition)
-    answer["references"] = [asdict(x) for x in sorted(
-        references, key=lambda r: (r.location.path, r.location.start_line, r.relationship))]
+    ordered = sorted(references, key=lambda r: (
+        r.location.path, r.location.start_line, r.relationship))
+    answer["references"] = [
+        {**asdict(r), "provenance_modules": list(sorted(provenance[(
+            r.location.path, r.location.start_line, r.relationship)]))}
+        for r in ordered
+    ]
     answer["abstentions"] = abstentions
     answer["warnings"] = warnings[:40]
     answer["context_bundle"] = context_bundle(
