@@ -127,3 +127,40 @@ def test_ts_semantic_cli_outputs_compiler_provenance(tmp_path, capsys):
     assert result["status"] == "complete", result["warnings"]
     assert result["references"][0]["location"]["path"] == "b.ts"
     assert result["compiler_version"] == "6.0.3"
+
+
+def test_typescript_interface_type_and_heritage_references(tmp_path):
+    write(tmp_path, "src/contracts.ts",
+          "export interface Authenticator { check(token: string): boolean; }\n")
+    write(tmp_path, "src/service.ts",
+          "import type { Authenticator } from './contracts';\n"
+          "export class Service implements Authenticator {\n"
+          "  check(token: string): boolean { return token.length > 0; }\n"
+          "}\n"
+          "export const use = (a: Authenticator) => a.check('ok');\n")
+    result = index_typescript(tmp_path, "src/contracts.ts", "Authenticator")
+    assert result["status"] == "complete", result["warnings"]
+    refs = {(r["relationship"], r["location"]["path"],
+             r["location"]["start_line"]) for r in result["references"]}
+    assert ("heritage_reference", "src/service.ts", 2) in refs
+    assert ("type_reference", "src/service.ts", 5) in refs
+    assert all(r["location"]["origin"] == "compiler" for r in result["references"])
+
+
+def test_constructor_and_member_method_references(tmp_path):
+    write(tmp_path, "src/processor.ts",
+          "export class Processor {\n"
+          "  run(input: number) { return input + 1; }\n"
+          "}\n")
+    write(tmp_path, "src/main.ts",
+          "import { Processor as Handler } from './processor';\n"
+          "const worker = new Handler();\n"
+          "export const result = worker.run(1);\n")
+    ctor = index_typescript(tmp_path, "src/processor.ts", "Processor")
+    method = index_typescript(tmp_path, "src/processor.ts", "run")
+    assert ctor["status"] == "complete", ctor["warnings"]
+    assert method["status"] == "complete", method["warnings"]
+    assert [(r["relationship"], r["location"]["start_line"])
+            for r in ctor["references"]] == [("constructor_call", 2)]
+    assert [(r["relationship"], r["location"]["start_line"])
+            for r in method["references"]] == [("member_call", 3)]
