@@ -115,6 +115,9 @@ def test_context_bundle_binds_symbol_refs_to_exact_file_hash_and_snapshot(tmp_pa
     another = replace(call, source_sha256="a" * 64)
     with pytest.raises(SemanticContractError, match="Stale"):
         context_bundle(snap, references=[replace(reference, location=another)])
+    invalid_line = replace(call, end_line=99)
+    with pytest.raises(SemanticContractError, match="Stale"):
+        context_bundle(snap, references=[replace(reference, location=invalid_line)])
     with pytest.raises(SemanticContractError):
         bound_span(snap, "src/auth.py", 3, 3, "ast", "candidate")
     with pytest.raises(SemanticContractError):
@@ -131,6 +134,22 @@ def test_source_span_rejects_false_certainty_and_invalid_lines(tmp_path):
     with pytest.raises(SemanticContractError):
         SourceSpan(snap["snapshot_id"], entry["path"], entry["sha256"],
                    1, 2, "model_guess", "confirmed")
+
+
+def test_symlink_directory_marks_manifest_incomplete(tmp_path):
+    _repo(tmp_path)
+    outside = tmp_path.parent / (tmp_path.name + "-outdir")
+    outside.mkdir()
+    try:
+        (outside / "secret.py").write_text("token = 'SECRET'\\n")
+        (tmp_path / "linked_sources").symlink_to(outside, target_is_directory=True)
+        snap = capture_worktree(tmp_path)
+        assert snap["complete"] is False
+        assert any("linked_sources" in w for w in snap["warnings"])
+        assert all(not x["path"].startswith("linked_sources") for x in snap["files"])
+    finally:
+        (outside / "secret.py").unlink()
+        outside.rmdir()
 
 
 def test_read_snapshot_rejects_symlink_and_malformed_json(tmp_path):
