@@ -164,3 +164,26 @@ def test_constructor_and_member_method_references(tmp_path):
             for r in ctor["references"]] == [("constructor_call", 2)]
     assert [(r["relationship"], r["location"]["start_line"])
             for r in method["references"]] == [("member_call", 3)]
+
+
+def test_unresolved_import_causes_partial_coverage_not_false_completeness(tmp_path):
+    write(tmp_path, "src/core.ts", "export function process() { return 1; }\n")
+    write(tmp_path, "src/consumer.ts",
+          "import { process } from './core';\n"
+          "import { missing } from './absent';\n"
+          "export const result = process();\n")
+    result = index_typescript(tmp_path, "src/core.ts", "process")
+    assert result["status"] == "partial"
+    assert any("unresolved" in w.lower() for w in result["warnings"])
+    assert result["references"][0]["location"]["path"] == "src/consumer.ts"
+
+
+def test_unsupported_typescript_major_version_fails_closed(tmp_path, monkeypatch):
+    import daddy_reviews.ts_semantic as adapter
+    write(tmp_path, "src/core.ts", "export function f() { return 1; }\n")
+    fake_package = tmp_path / "compiler-version.json"
+    fake_package.write_text('{"version": "7.0.2"}')
+    monkeypatch.setattr(adapter, "TS_INSTALL", fake_package)
+    result = index_typescript(tmp_path, "src/core.ts", "f")
+    assert result["status"] == "unavailable"
+    assert result["references"] == []
