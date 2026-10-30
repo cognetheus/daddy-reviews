@@ -228,8 +228,14 @@ function run(req) {
   result.references = refs;
   if (budgetExceeded) result.warnings.push("Reference output budget reached; index is incomplete");
   const diagnostics = program.getSyntacticDiagnostics().concat(program.getOptionsDiagnostics());
+  const unresolvedImports = program.getSemanticDiagnostics().filter(d =>
+    [2304, 2305, 2307, 2792, 7016].includes(d.code));
   if (diagnostics.length) result.warnings.push(
     "Compiler reported " + diagnostics.length + " syntax/configuration diagnostic(s); review results cautiously");
-  result.status = (budgetExceeded || diagnostics.length) ? "partial" : "complete";
+  if (unresolvedImports.length) result.warnings.push(
+    "Compiler reported " + unresolvedImports.length +
+    " unresolved name/import diagnostic(s); results may omit consumers");
+  result.status = (budgetExceeded || diagnostics.length || unresolvedImports.length) ?
+    "partial" : "complete";
   finish(result.status, null);
 }
