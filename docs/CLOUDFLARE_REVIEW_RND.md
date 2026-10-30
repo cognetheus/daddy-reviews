@@ -27,7 +27,7 @@ Cloudflare's Engineering Codex uses RFC-style ownership, MUST/SHOULD requirement
 Cloudflare uses a coordinator to deduplicate, recategorize and reject speculative specialist findings. Daddy Reviews includes a deterministic, nonblocking adjudicator. It merges identical assertions, surfaces contradictions, and requires an explicit verification artifact before escalating a claimed confirmed severe candidate to **human block review**. No automated approval or GitHub write is performed.
 
 ### 5. Agent execution belongs behind verification and budgets
-Cloudflare uses separate OpenCode sessions, retryable-error classification, timeouts, circuit breakers, remote configuration and usage tracking. A **local-only opt-in reviewer runtime** is now available via `ai-review`. It uses actual parallel specialist model requests via the local Ollama HTTP API, never exposes tools to model sessions, validates changed-line citations, and treats all model claims as unverified. A plain `review` remains deterministic and makes no model calls. Hosted execution, cost tracking, circuit breakers and total orchestration deadlines are not implemented.
+Cloudflare uses separate OpenCode sessions, retryable-error classification, timeouts, circuit breakers, remote configuration and usage tracking. A **local-only opt-in reviewer runtime** is now available via `ai-review`. It uses actual parallel specialist model requests via the local Ollama HTTP API, never exposes tools to model sessions, validates changed-line citations, and treats all model claims as unverified. A plain `review` remains deterministic and makes no model calls. Hosted execution, circuit breakers and total orchestration deadlines are not implemented. R6 records *local* token/latency metrics and caller-priced cost estimates; this is not hosted provider billing.
 
 ### 6. Evals and cost are production features
 Cloudflare's October optimization write-up notes prompt-cache prefix placement, model/effort experiments, concurrency and shadow mode. Before introducing an LLM executor, measure reviewer agreement on labeled PRs, true defect precision/recall, false-alarm rate, review p95 latency, token/cost by tier, provider failure behavior and reviewer usefulness.
@@ -41,8 +41,8 @@ Cloudflare's October optimization write-up notes prompt-cache prefix placement, 
 | **R2 — governed rules** | `standards.evaluate_standards()`: schema validation, explicit applicability and governance metadata | No implicit violation or merge block; unsafe catalogs abstain |
 | **R3 — evidence coordinator** | `adjudication.adjudicate()`: deterministic deduplication, disagreement, proof gate | No autonomous comments, approvals or merge blocking |
 | **R4 — local agent runtime** | **Implemented:** explicit CLI opt-in, localhost Ollama provider, concurrent specialist calls, output budgets, source-line validation and fail-closed reports | Fake-provider and local HTTP transport tests; live model quality not measured |
-| **R5 — CI posting and reruns** | *Not implemented*: GitHub checks/comments, stable finding identities, re-review tracking | Explicit user opt-in, least privilege, idempotency, human override |
-| **R6 — quality and cost calibration** | *Not implemented*: labeled real-world PR corpus, canary/shadow A/B, cost/latency dashboards | Measured false-positive and severity reliability |
+| **R5 — GitHub PR publication and reruns** | **Implemented:** explicit human-approved confirmed comment publication, pinned PR HEAD, exact inline mapping, fingerprint dedupe, opt-in incremental diff checkpoint | Fake GitHub client tests; only best-effort dedupe across concurrent writers; no automated merge decisions |
+| **R6 — quality and cost calibration** | **Implemented:** human-labeled per-tier metrics, measured local Ollama token/latency counts, optional cost-rate aggregation, offline shadow/canary regression comparisons | Synthetic scoring tests and CI; no real-production accuracy benchmarks or live traffic rollout |
 
 ## Local specialist execution (R4)
 
@@ -84,3 +84,11 @@ No automatic `state=enforced` blocking exists. That will require independent con
 - Internal Cloudflare standards and code are not copied.
 
 The priority remains **evidence over volume**: a single reproducible important finding beats ten speculative comments.
+
+## R5 and R6 usage
+
+R5 is documented in [controlled GitHub PR publication](R5_GITHUB_PUBLISHING.md): manually approved findings only, optimistic head-sha pinning, line preflight, comment fingerprints, and explicit local rerun state.
+
+R6 is documented in [review calibration](R6_CALIBRATION.md): human-labeled quality scoring, observed local model usage, and offline comparison of identical-case baseline/candidate outputs. Real-world reviewer effectiveness remains unmeasured without a representative labeled corpus.
+
+Neither feature implements a hosted Cloudflare-style reviewer fleet, automatic PR approval/block, live canary deployment, or proved defect precision on production PRs.
