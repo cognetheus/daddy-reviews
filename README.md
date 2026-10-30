@@ -53,6 +53,23 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
+## R7.04 — Java and C#/.NET compiler semantic analysis (v1.11.0)
+
+**New:** opt-in Java (`javac` Trees) and C#/.NET (Roslyn SDK) semantic adapters with **compiler-resolved method, constructor, and type-reference identity**. Each output is bounded and bound to an R7.01 source snapshot; unresolved external dependencies produce partial coverage rather than a fabricated clean result.
+
+```bash
+# Java needs JDK 17+; JDK 21 used in CI
+daddy-reviews java-semantic --root . --changed src/main/java/app/UserService.java --symbol UserService.authorize
+
+# C# needs the pinned .NET 8 SDK and a one-time build of the trusted helper
+(cd tooling/dotnet && dotnet build -c Release)
+daddy-reviews cs-semantic --root . --changed src/Services/UserService.cs --symbol UserService.Authorize
+```
+
+The adapters do not run reviewed code, build systems or dependency resolution. Java uses JDK compiler APIs **instead of JDT LS**; Roslyn uses standalone compilation **instead of MSBuildWorkspace**. Full multi-module project loading and cross-layer impact retrieval remain R7.05–R7.06 work.
+
+See [R7.04 compiler contracts and limitations](docs/R7_COMPILED_LANGUAGES.md).
+
 ## R7.03 — Python semantic analysis (v1.10.0)
 
 **New:** snapshot-bound Python AST semantic reference candidates, covering unambiguous import bindings, relative modules, aliases, re-export chains, constructors, async functions, decorators, class inheritance, and method calls on conservatively inferred typed receivers. Dynamic, shadowed or competing bindings abstain rather than generating unsupported references.
