@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from .core import Finding, Severity, Verification
 
-EXCLUDE = {'.git','.venv','venv','node_modules','dist','build','coverage','__pycache__','.next'}
+EXCLUDE = {'.git','.venv','venv','node_modules','dist','build','coverage','__pycache__','.next','obj','bin'}
 SOURCES = {'.py', '.ts', '.tsx', '.js', '.jsx', '.cs', '.java'}
 @dataclass(frozen=True)
 class Symbol:
