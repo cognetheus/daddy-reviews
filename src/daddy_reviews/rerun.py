@@ -97,18 +97,29 @@ def plan_rerun(root: Path, patch: str, head: str, previous: dict | None = None) 
     elif previous["patch_sha256"] != latest["patch_sha256"]:
         # Ordering/meta changes: conservatively review.
         action = "review_changed"
+    elif previous["head_sha"] != head:
+        # Same complete diff on a different commit: no need to claim a fresh
+        # review; any linked verification/publication must still be rechecked.
+        action = "revalidate_head"
     else:
         action = "no_change"
-    selected = [c for c in parse_diff(patch) if c.new_path in changed or
-                (not c.new_path and c.old_path in changed)]
+    # A removed file patch can alter current overall PR scope or dependencies.
+    # Conservatively route the complete current patch rather than silently
+    # trusting cached context from a vanished file.
+    all_changes = parse_diff(patch)
+    selected = (all_changes if removed else
+                [c for c in all_changes if (c.new_path or c.old_path) in changed])
     tier = assess_review_tier(root, selected)
     return {
         "format": VERSION, "action": action,
         "previous_head_sha": previous["head_sha"] if previous else None,
         "head_sha": head, "head_changed": previous is not None and previous["head_sha"] != head,
         "changed_files": changed, "removed_files": removed, "reused_file_evidence": unchanged,
-        "selected_reviewers": list(tier["recommended_reviewers"]) if action != "no_change" else [],
-        "risk_tier": tier["tier"] if action != "no_change" else None,
+        "selected_reviewers": list(tier["recommended_reviewers"])
+        if action in ("initial_review", "review_changed") else [],
+        "reanalysis_scope": "entire_current_patch" if removed else
+                            "changed_patch_files" if changed else "none",
+        "risk_tier": tier["tier"] if action in ("initial_review", "review_changed") else None,
         "state": latest, "wrote_state": False,
         "limitations": [
             "Incremental plan only; existing review evidence is not automatically verified as fresh.",
