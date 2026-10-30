@@ -16,6 +16,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet build tooling/dotnet/DaddySemanticIndexer.csproj --configuration Release --nologo -p:NuGetAudit=false
+      - run: dotnet tooling/dotnet/bin/Release/net8.0/DaddySemanticIndexer.dll --help > /dev/null || true
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
