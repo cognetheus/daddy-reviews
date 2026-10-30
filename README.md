@@ -53,6 +53,20 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
+## R7.02 — Compiler-backed TypeScript/JavaScript analysis (v1.9.0)
+
+**New:** read-only TypeScript **6.0.3 compiler API** semantic references with verified snapshot provenance. Resolves named imports, aliases, barrel re-exports, class constructors/methods, interfaces, type annotations and inheritance without relying on identifier spelling alone. The existing lexical indexing remains available separately.
+
+```bash
+# Optional dependency; base Python CLI does not require Node
+npm install --prefix tooling/typescript --ignore-scripts --no-audit --no-fund
+daddy-reviews ts-semantic --root . --changed src/auth.ts --symbol authorize
+```
+
+The compiler adapter never executes project code. Unsupported tsconfig `extends`/project references, missing dependencies and incomplete snapshots are reported instead of fabricated links. It is a **single-symbol query adapter**, not yet the full R7.06 contextual index.
+
+See [R7.02 design, setup and acceptance](docs/R7_TYPESCRIPT_COMPILER.md).
+
 ## R7.01 — Semantic source contracts (v1.8.0)
 
 First implementation of the deeper repository-intelligence roadmap: **bounded, SHA-256 source manifests and provenance-bound semantic symbol/reference/context contracts**. This is not yet a full language-server index or compiler-backed call graph.
