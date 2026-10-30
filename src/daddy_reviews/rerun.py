@@ -12,7 +12,7 @@ import re
 import tempfile
 
 from .diff import parse_diff
-from .triage import assess_review_tier
+from .triage import assess_review_tier, REVIEWERS
 
 MAX_STATE = 300_000
 SHA = re.compile(r"^[a-f0-9]{40}$")
@@ -110,6 +110,10 @@ def plan_rerun(root: Path, patch: str, head: str, previous: dict | None = None) 
     selected = (all_changes if removed else
                 [c for c in all_changes if (c.new_path or c.old_path) in changed])
     tier = assess_review_tier(root, selected)
+    if removed:
+        tier["tier"] = "full"
+        tier["recommended_reviewers"] = REVIEWERS["full"]
+        tier["reasons"] = (*tier["reasons"], "Previous PR diff files disappeared; revalidate full current patch")
     return {
         "format": VERSION, "action": action,
         "previous_head_sha": previous["head_sha"] if previous else None,
