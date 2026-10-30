@@ -142,9 +142,9 @@ def local_ollama_provider(model: str, base_url: str = "http://127.0.0.1:11434",
         # Usage comes from the Ollama response envelope, never model-supplied JSON.
         # Missing usage stays unavailable, not artificially zero.
         inbound, outbound = response.get("prompt_eval_count"), response.get("eval_count")
-        parsed["_usage"] = ({"input_tokens": inbound, "output_tokens": outbound}
-                            if type(inbound) is int and inbound >= 0
-                            and type(outbound) is int and outbound >= 0 else None)
+        if (type(inbound) is int and inbound >= 0
+                and type(outbound) is int and outbound >= 0):
+            parsed["_usage"] = {"input_tokens": inbound, "output_tokens": outbound}
         return parsed
 
     return ask
