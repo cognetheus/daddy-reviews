@@ -101,4 +101,13 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Added four synthetic scenario specifications for Python auth consumers, TypeScript barrel re-export, lexical shadowing and clean changes. These are **not** human-labeled real defect accuracy benchmarks.
 - See [R7 contracts](R7_SEMANTIC_CONTRACTS.md).
 
-**Next: R7.02** — TypeScript compiler-backed symbol/reference indexing with compiler version provenance, unresolved cases, and tests against the fixture contracts. Do not infer compiler evidence from existing lexical results.
+### R7.02 — TypeScript 6 compiler-backed semantic references (v1.9.0)
+
+- Implemented a bounded virtual TypeScript CompilerHost and TypeChecker adapter for TS/TSX/JS/JSX sources, compiled from the R7.01 verified content snapshot. No project code is executed.
+- Tracks compiler identity for imported/aliased names and barrel reexports, constructor and member calls, interfaces, type annotations, and inheritance.
+- Exposes `ts-semantic --root . --changed PATH --symbol NAME` without replacing `symbol-impact` or changing the default diff-review behavior.
+- Fails closed on compiler version mismatch, source drift, unsupported extended/project-reference tsconfigs, missing target symbols and budget violations. Unresolved imports yield partial coverage warnings.
+- Real pinned TypeScript 6.0.3 compiler execution is exercised in CI on Python 3.10, 3.12 and 3.13, alongside the pre-existing suite.
+- Remaining gaps: multi-project TypeScript monorepo resolution, persistent symbol index, semantic-context ranking, full JS/TS structural call graph, dynamic consumers, and external packages. See [R7.02 technical documentation](R7_TYPESCRIPT_COMPILER.md).
+
+**Next: R7.03** — Python semantic indexing, Python LSP/AST provenance and separately validated import/call references.
