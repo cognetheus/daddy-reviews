@@ -33,7 +33,7 @@ new file mode 100644
         report=review_patch(root,patch)
         assert report['module_dependency_impact']['direct_consumers'][0]['path']=='caller.py'
         assert report['findings']==[]
-        assert report['report_version']=='1.5.0'
+        assert report['report_version']=='1.6.0'
 
 
 def test_graph_diff_cli_reads_exported_envelopes(capsys):
