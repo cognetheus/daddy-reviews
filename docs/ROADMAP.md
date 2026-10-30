@@ -90,3 +90,15 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - **Out of scope for v1.7.0:** autonomous GitHub merge enforcement, production hosted model/failover, live shadow traffic, production-quality labeled accuracy estimates and guaranteed exactly-once publication under concurrent writers.
 
 **Release invariant:** avoid promoting static candidates to proven defects, or route hints to performed reviews. No unsolicited autonomous review comments and no automated merge blocking.
+
+## R7 — Semantic intelligence implementation
+
+### R7.01 — Source snapshot, evidence contracts and baseline fixtures (delivered in v1.8.0)
+
+- Implemented bounded, content-hashed, deterministic worktree snapshot manifests (`semantic_contracts.py`) with explicit incompleteness, symlink skipping and source scan budgets.
+- Versioned typed evidence records: `SourceSpan`, `SemanticSymbol`, `SemanticReference`, `ContextExcerpt`, `context_bundle`. Records are anchored to file bytes and a snapshot ID; unverified runtime call claims remain forbidden.
+- Added read-only `snapshot` and `snapshot-verify` commands with nonzero stale-snapshot exit and CI coverage on Python 3.10, 3.12 and 3.13.
+- Added four synthetic scenario specifications for Python auth consumers, TypeScript barrel re-export, lexical shadowing and clean changes. These are **not** human-labeled real defect accuracy benchmarks.
+- See [R7 contracts](R7_SEMANTIC_CONTRACTS.md).
+
+**Next: R7.02** — TypeScript compiler-backed symbol/reference indexing with compiler version provenance, unresolved cases, and tests against the fixture contracts. Do not infer compiler evidence from existing lexical results.
