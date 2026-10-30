@@ -6,6 +6,7 @@ human reviewers before numbers are interpreted as actual defect detection.
 from __future__ import annotations
 from collections import defaultdict
 import json
+import math
 from pathlib import Path
 
 MAX_BYTES = 4_000_000
@@ -142,7 +143,8 @@ def summarize_runtime(reports: list[dict], input_usd_per_million: float | None =
             if not isinstance(row, dict) or row.get("status") not in ("completed", "failed"):
                 raise QualityError("Invalid reviewer status")
             runtime_ms = row.get("latency_ms")
-            if not isinstance(runtime_ms, (int, float)) or isinstance(runtime_ms, bool) or runtime_ms < 0:
+            if (not isinstance(runtime_ms, (int, float)) or isinstance(runtime_ms, bool)
+                    or not math.isfinite(runtime_ms) or runtime_ms < 0):
                 raise QualityError("Missing or invalid measured latency")
             tokens = row.get("usage")
             if tokens is not None:
