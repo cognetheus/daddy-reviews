@@ -1,0 +1,48 @@
+{
+  "format": "daddy-reviews-quality-v1",
+  "description": "SYNTHETIC teaching fixture only — not empirical model evaluation or production benchmark",
+  "cases": [
+    {
+      "id": "synthetic-clean-docs",
+      "tier": "trivial",
+      "label_status": "human_verified",
+      "expected": [],
+      "observed": []
+    },
+    {
+      "id": "synthetic-one-confirmed-bug",
+      "tier": "full",
+      "label_status": "human_verified",
+      "expected": [
+        {
+          "path": "src/auth.py",
+          "line": 17,
+          "rule": "AUTH_001",
+          "severity": "high"
+        }
+      ],
+      "observed": [
+        {
+          "path": "src/auth.py",
+          "line": 17,
+          "rule": "AUTH_001",
+          "severity": "high"
+        }
+      ]
+    },
+    {
+      "id": "synthetic-false-alarm",
+      "tier": "lite",
+      "label_status": "human_verified",
+      "expected": [],
+      "observed": [
+        {
+          "path": "src/calc.py",
+          "line": 4,
+          "rule": "UNCERTAIN",
+          "severity": "low"
+        }
+      ]
+    }
+  ]
+}
