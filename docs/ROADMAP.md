@@ -85,6 +85,8 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - **R2 (policy source) delivered:** opt-in `standards.json` catalog with owner-authored IDs, MUST/SHOULD level, advisory/enforced lifecycle, relative glob matching, safe validation and mandatory abstention for unverified compliance.
 - **R3 (evidence consolidation) delivered:** same-finding coalescing, reviewer contradictions, explicit verification-artifact checking, human block-review candidates, and no merge writes.
 - **R4 delivered (local):** explicit opt-in localhost Ollama provider, parallel specialist calls, bounded inputs, validation and incomplete-run reporting. Fake/local HTTP tests only; real-model quality not evaluated.
-- **R5–R6 pending:** hosted providers and circuit breakers, PR posting, rerun state, calibrated evaluations and cost telemetry.
+- **R5 delivered (safe/opt-in):** human-approved, confirmed-finding PR inline comments with pinned SHA, changed-line validation, existing fingerprint checks and no approvals/merge blocking. Deterministic diff-level incremental rerun planning and opt-in local checkpoint persistence.
+- **R6 delivered (offline evaluation):** human-labeled precision/recall/F1, per-tier false alarms and severity agreement, local Ollama latency/token reports, optional cost rates and identical-case shadow/canary comparisons.
+- **Out of scope for v1.7.0:** autonomous GitHub merge enforcement, production hosted model/failover, live shadow traffic, production-quality labeled accuracy estimates and guaranteed exactly-once publication under concurrent writers.
 
 **Release invariant:** avoid promoting static candidates to proven defects, or route hints to performed reviews. No unsolicited autonomous review comments and no automated merge blocking.
