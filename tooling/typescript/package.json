@@ -1,0 +1,9 @@
+{
+  "name": "@daddy-reviews/typescript-indexer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Optional, bounded TypeScript 6 compiler-backed semantic indexer",
+  "license": "UNLICENSED",
+  "engines": {"node": ">=20"},
+  "dependencies": {"typescript": "6.0.3"}
+}
