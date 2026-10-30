@@ -32,7 +32,14 @@ jobs:
       - run: npm install --prefix tooling/typescript --ignore-scripts --no-audit --no-fund --no-package-lock
       - run: node -e "const v=require('./tooling/typescript/node_modules/typescript/package.json').version; if(v!=='6.0.3') process.exit(1)"
       - run: python -m pip install -e . pytest
+      - name: Verify both semantic compiler tools are installed
+        run: |
+          java -version
+          dotnet --version
+          python -c "from daddy_reviews.compiled_semantic import JAVA_HELPER, CS_HELPER; assert JAVA_HELPER.is_file() and CS_HELPER.is_file()"
       - run: pytest -q
+      - name: Require Java and Roslyn semantic integration tests
+        run: pytest -q tests/test_compiled_semantic.py
       - run: python -m daddy_reviews.cli plan --task 'Review PR' --changed src/auth/tenant.py
       - run: python -m daddy_reviews.cli review --root . --base HEAD~1 --head HEAD
       - run: python -m daddy_reviews.cli evaluate --dataset evals/baseline.json
