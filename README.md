@@ -4,7 +4,24 @@
 
 ![CI](https://github.com/cognetheus/daddy-reviews/actions/workflows/ci.yml/badge.svg)
 
-v0.9.0 includes a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
+v1.5.0 now includes **adaptive review tiers, repository-owned standards applicability, and conservative cross-reviewer adjudication**, alongside the existing read-only diff evidence engine. The new features are deterministic planning and evidence safeguards, **not** autonomous model reviewers or automatic merge approvals.\n\nPreviously, v0.9.0 added a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
+
+## Cloudflare-inspired review phases (v1.5.0)
+
+Implemented in [R1–R3 research and implementation](docs/CLOUDFLARE_REVIEW_RND.md):
+
+- **Risk-tier routing:** `trivial`, `lite`, `full` with explicit escalation for security, schema migrations, and operational changes.
+- **Noise classification:** lockfiles and generated/vendor files are marked as context-only suggestions **without removing evidence from review**.
+- **Engineering standards:** an opt-in `.daddy-reviews/standards.json` catalog with rule IDs, MUST/SHOULD levels, state, source and path applicability; rules do not automatically block.
+- **Finding adjudication:** deduplication, contradictions, verification-artifact requirements and human-review candidates; no unauthorized approvals or GitHub comments.
+
+```bash
+daddy-reviews review --root . --base origin/main --head HEAD
+daddy-reviews standards --root . --changed src/auth/login.py
+daddy-reviews adjudicate --root . --report-file review.json
+```
+
+The `review` report now includes `review_tier`, `standards` and `adjudication` fields. No model/sub-agent executor has been installed in v1.5.0.
 
 ## Install and test
 
