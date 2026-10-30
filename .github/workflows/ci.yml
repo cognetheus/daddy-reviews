@@ -23,8 +23,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet build tooling/dotnet/DaddySemanticIndexer.csproj --configuration Release --nologo -p:NuGetAudit=false
-      - run: dotnet tooling/dotnet/bin/Release/net8.0/DaddySemanticIndexer.dll --help > /dev/null || true
+      - name: Build pinned .NET 8 Roslyn semantic helper
+        working-directory: tooling/dotnet
+        run: dotnet build DaddySemanticIndexer.csproj --configuration Release --nologo -p:NuGetAudit=false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
