@@ -10,6 +10,8 @@ from .references import import_call_candidates
 from .stack import scan_stack
 from .js_graph import js_changed_symbols, js_import_call_candidates
 from .graph import build_graph, impact, import_cycles
+from .triage import assess_review_tier
+from .standards import evaluate_standards
 
 
 def review_patch(root: Path, patch: str, task: str='Review pull request') -> dict:
@@ -17,6 +19,8 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
     changes=parse_diff(patch)
     paths=[c.new_path or c.old_path for c in changes]
     plan=plan_review(task,paths)
+    review_tier=assess_review_tier(root,changes)
+    standards=evaluate_standards(root,paths)
     symbols=changed_python_symbols(root, changes)
     js_symbols=js_changed_symbols(root,changes)
     js_calls=js_import_call_candidates(root,js_symbols)
@@ -35,7 +39,7 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
     findings=[x.to_dict() for x in deduplicate(candidates)]
     return {
         'report_version':'0.8.0', 'scope':'local_diff_plus_bounded_repository_context',
-        'plan':asdict(plan), 'stack':scan_stack(root), 'files':[c.as_dict() for c in changes],
+        'plan':asdict(plan), 'review_tier':review_tier, 'standards':standards, 'stack':scan_stack(root), 'files':[c.as_dict() for c in changes],
         'changed_python_symbols':[asdict(s) for s in symbols],
         'changed_js_ts_symbols':[asdict(s) for s in js_symbols],
         'js_ts_import_linked_calls':js_calls,
@@ -46,6 +50,8 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
         'disposition':'no_verified_blockers' if not any(f['disposition']=='block' for f in findings) else 'requires_attention',
         'limitations':[
           'No automatic functional or architectural correctness guarantee.',
+          'Review tiers and reviewer names are planning recommendations; no external agents run.',
+          'Standards matches are applicability hints, not verified violations or merge gates.',
           'Textual references and import-linked calls are candidates, not a proven call graph.',
           'AST-identical function bodies do not prove redundant responsibilities.',
           'A lack of findings is not approval or proof of defect-free code.',
