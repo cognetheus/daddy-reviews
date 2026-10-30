@@ -8,3 +8,5 @@ dist/
 .daddy-rerun.json
 .daddy-review-state*.json
 node_modules/
+obj/
+bin/
