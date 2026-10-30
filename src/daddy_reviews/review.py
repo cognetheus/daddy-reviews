@@ -39,7 +39,7 @@ def review_patch(root: Path, patch: str, task: str='Review pull request') -> dic
             candidates.append(f)
     findings=[x.to_dict() for x in deduplicate(candidates)]
     return {
-        'report_version':'1.6.0', 'scope':'local_diff_plus_bounded_repository_context',
+        'report_version':'1.7.0', 'scope':'local_diff_plus_bounded_repository_context',
         'plan':asdict(plan), 'review_tier':review_tier, 'standards':standards, 'stack':scan_stack(root), 'files':[c.as_dict() for c in changes],
         'changed_python_symbols':[asdict(s) for s in symbols],
         'changed_js_ts_symbols':[asdict(s) for s in js_symbols],
