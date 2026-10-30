@@ -118,4 +118,14 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Uses only Python's standard `ast` module and source-hash contracts; **no language server or whole-program type inference** is claimed. LSP integration remains an optional later adapter.
 - Added CI fixtures for positive and negative import/method cases, symlink/incomplete/ambiguous source behavior, and CLI provenance checks. See [R7.03 design](R7_PYTHON_SEMANTICS.md).
 
-**Next: R7.04** — Java/JDT and C#/.NET/Roslyn semantic adapters, each with explicit supported versions, source provenance and validated limitations.
+### R7.04 — Java and C# compiler-backed semantic references (v1.11.0)
+
+- Implemented `java-semantic` via JDK javac `JavacTask` and `Trees` source/element identities. No JDT LS daemon or source execution.
+- Implemented `cs-semantic` via local SDK-pinned Roslyn CSharpCompilation and semantic model, compiled from trusted helper source without NuGet packages or project MSBuild hooks.
+- Both use copied SHA-256-validated worktree sources and R7.01 source spans, with explicit unresolved/partial/stale statuses and bounded execution.
+- Compiler checks distinguish identical method spellings with different symbols; method calls, constructor calls and class/type references are supported.
+- CI installs JDK 21 and .NET 8, builds the Roslyn helper and runs actual language compiler integration cases across the Python 3.10/3.12/3.13 matrix.
+- Java project-aware JDT LS, Maven/Gradle classpaths and C# MSBuildWorkspace/solution resolution remain **separate, explicitly unmet** capabilities.
+- See [Java and C# compiler integration design](R7_COMPILED_LANGUAGES.md).
+
+**Next: R7.05** — Cross-layer dependency intelligence, linking frontend calls, backend API/DTO contracts, domain services, ORM/data changes and event consumers using source-backed evidence. R7.06 will provide ranked context retrieval and index lifecycle.
