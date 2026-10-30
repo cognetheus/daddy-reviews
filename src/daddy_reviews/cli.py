@@ -25,13 +25,15 @@ from .github_publish import PublicationError, publish
 from .rerun import RerunError, plan_rerun, read_state, save_state
 from .quality import QualityError, read_quality_dataset, score_quality, summarize_runtime
 from .calibration import compare_quality
+from .semantic_contracts import SemanticContractError, capture_worktree, read_snapshot, verify_worktree
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
+    parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
     parser.add_argument('--baseline-dataset',help='Baseline human-labeled reviewer predictions')
     parser.add_argument('--candidate-dataset',help='Candidate predictions on identical case labels')
     parser.add_argument('--pr',type=int,help='GitHub pull request number')
@@ -70,7 +72,19 @@ def main(argv=None):
         parser.error('--apply is only supported by pr-publish')
     if args.save_state and args.command != 'rerun':
         parser.error('--save-state is only supported by rerun')
-    if args.command=='plan':
+    if args.command=='snapshot':
+        try:
+            data=capture_worktree(root)
+        except (SemanticContractError,OSError) as exc:
+            parser.error(str(exc))
+    elif args.command=='snapshot-verify':
+        if not args.snapshot_file:
+            parser.error('snapshot-verify requires --snapshot-file')
+        try:
+            data=verify_worktree(root,read_snapshot(Path(args.snapshot_file)))
+        except (SemanticContractError,OSError) as exc:
+            parser.error(str(exc))
+    elif args.command=='plan':
         data=asdict(plan_review(args.task,args.changed))
     elif args.command=='inventory':
         data=inventory(root)
@@ -211,5 +225,7 @@ def main(argv=None):
               'notice':'Static candidates are unverified. Empty results do not imply defect-free code.'}
     print(json.dumps(data,indent=2))
     if args.command=='ai-review' and data['status'] != 'complete':
+        raise SystemExit(2)
+    if args.command=='snapshot-verify' and not data['verified']:
         raise SystemExit(2)
 if __name__=='__main__':main()
