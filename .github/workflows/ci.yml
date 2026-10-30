@@ -48,3 +48,5 @@ jobs:
           python -m daddy_reviews.cli snapshot --root . > /tmp/daddy-reviews-semantic-snapshot.json
           python -m daddy_reviews.cli snapshot-verify --root . --snapshot-file /tmp/daddy-reviews-semantic-snapshot.json > /dev/null
       - run: pytest -q tests/test_semantic_contracts.py tests/test_r7_context_scenarios.py
+      - run: pytest -q tests/test_py_semantic.py
+      - run: python -m daddy_reviews.cli py-semantic --root . --changed src/daddy_reviews/py_semantic.py --symbol index_python > /dev/null
