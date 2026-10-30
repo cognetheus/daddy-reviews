@@ -27,11 +27,12 @@ from .quality import QualityError, read_quality_dataset, score_quality, summariz
 from .calibration import compare_quality
 from .semantic_contracts import SemanticContractError, capture_worktree, read_snapshot as read_source_snapshot, verify_worktree
 from .ts_semantic import TypeScriptSemanticError, index_typescript
+from .py_semantic import PythonSemanticError, index_python
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -85,6 +86,14 @@ def main(argv=None):
         try:
             data=verify_worktree(root,read_source_snapshot(Path(args.snapshot_file)))
         except (SemanticContractError,OSError) as exc:
+            parser.error(str(exc))
+    elif args.command=='py-semantic':
+        if len(args.changed) != 1 or not args.symbol:
+            parser.error('py-semantic needs exactly one --changed PATH and --symbol NAME')
+        try:
+            state=read_source_snapshot(Path(args.snapshot_file)) if args.snapshot_file else None
+            data=index_python(root,args.changed[0],args.symbol,snapshot=state)
+        except (SemanticContractError,PythonSemanticError,OSError) as exc:
             parser.error(str(exc))
     elif args.command=='ts-semantic':
         if len(args.changed) != 1 or not args.symbol:
@@ -240,5 +249,7 @@ def main(argv=None):
     if args.command=='snapshot-verify' and not data['verified']:
         raise SystemExit(2)
     if args.command=='ts-semantic' and data['status'] != 'complete':
+        raise SystemExit(2)
+    if args.command=='py-semantic' and data['status'] != 'complete':
         raise SystemExit(2)
 if __name__=='__main__':main()
