@@ -333,20 +333,37 @@ class _References(ast.NodeVisitor):
                 self._push_reference(deco, "decorator_reference", chain)
         for arg in node.args.posonlyargs + node.args.args + node.args.kwonlyargs:
             if arg.annotation:
+                chain = self._target_expression(arg.annotation)
+                if chain:
+                    self._push_reference(arg.annotation, "type_annotation_candidate", chain)
                 self.visit(arg.annotation)
         if node.returns:
+            chain = self._target_expression(node.returns)
+            if chain:
+                self._push_reference(node.returns, "type_annotation_candidate", chain)
             self.visit(node.returns)
         self._walk_body(node.body, local=True, args=node.args)
 
     visit_AsyncFunctionDef = visit_FunctionDef
 
     def visit_ClassDef(self, node):
+        for deco in node.decorator_list:
+            target = deco.func if isinstance(deco, ast.Call) else deco
+            chain = self._target_expression(target)
+            if chain:
+                self._push_reference(deco, "decorator_reference", chain)
         for base in node.bases:
             chain = self._target_expression(base)
             if chain:
                 self._push_reference(base, "heritage_reference", chain)
         # Class scope does not become the global lookup environment for methods.
         self._walk_body(node.body)
+
+    def visit_AnnAssign(self, node):
+        chain = self._target_expression(node.annotation)
+        if chain:
+            self._push_reference(node.annotation, "type_annotation_candidate", chain)
+        self.generic_visit(node)
 
     def visit_Call(self, node):
         chain = self._target_expression(node.func)
