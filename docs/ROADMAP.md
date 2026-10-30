@@ -75,3 +75,15 @@ Added conservative function-local import provenance for direct unconditional fun
 ### Phase 2 JS/TS named-import symbol candidates (v1.4.0)
 
 `symbol-impact` now dispatches to a bounded JS/TS lexical adapter for selected top-level named exports. It recognizes direct named import aliases and standalone tsconfig/jsconfig path candidates, and conservatively abstains on possible lexical rebinding, duplicate import bindings, type-only imports, reexports, default/namespace imports, and unsupported targets. Results are **syntactic investigation leads**, not TypeScript compiler symbols, verified calls, or defect findings. Next: opt-in TypeScript compiler/SCIP integration with build-context provenance, cross-layer contract tracing, and human-labeled precision evaluation.
+
+## Cloudflare-informed review evolution — v1.5.0
+
+See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
+
+- **R0 (research) delivered:** Cloudflare review orchestration, risk tiers, Engineering Codex rules, re-review behavior and October 2026 inference optimization were evaluated against this repository's actual baseline.
+- **R1 (adaptive scope) delivered:** read-only deterministic `review_tier` calculation, file/line thresholds, sensitive-boundary escalation, context-only noise hints, and migration/generated-code exception fixtures.
+- **R2 (policy source) delivered:** opt-in `standards.json` catalog with owner-authored IDs, MUST/SHOULD level, advisory/enforced lifecycle, relative glob matching, safe validation and mandatory abstention for unverified compliance.
+- **R3 (evidence consolidation) delivered:** same-finding coalescing, reviewer contradictions, explicit verification-artifact checking, human block-review candidates, and no merge writes.
+- **R4–R6 not delivered:** genuine model sub-agent sessions, shadow-evaluated provider adapters, circuit breakers, GitHub review posting/reviews, incremental re-review state, labeled bug corpus and cost-quality dashboards remain independent follow-on milestones.
+
+**Release invariant:** avoid promoting static candidates to proven defects, or route hints to performed reviews. No unsolicited autonomous review comments and no automated merge blocking.
