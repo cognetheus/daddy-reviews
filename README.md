@@ -4,9 +4,9 @@
 
 ![CI](https://github.com/cognetheus/daddy-reviews/actions/workflows/ci.yml/badge.svg)
 
-v1.6.0 now includes **adaptive review tiers, repository-owned standards applicability, and conservative cross-reviewer adjudication**, alongside the existing read-only diff evidence engine. The new features are deterministic planning and evidence safeguards, **not** autonomous model reviewers or automatic merge approvals.\n\nPreviously, v0.9.0 added a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
+v1.7.0 now includes **adaptive review tiers, repository-owned standards applicability, and conservative cross-reviewer adjudication**, alongside the existing read-only diff evidence engine. The new features are deterministic planning and evidence safeguards, **not** autonomous model reviewers or automatic merge approvals.\n\nPreviously, v0.9.0 added a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
 
-## Cloudflare-inspired review phases (v1.6.0)
+## Cloudflare-inspired review phases (v1.7.0)
 
 Implemented in [R1–R4 research and implementation](docs/CLOUDFLARE_REVIEW_RND.md):
 
@@ -26,6 +26,32 @@ daddy-reviews ai-review --root . --base origin/main --head HEAD --model YOUR_LOC
 ```
 
 The `review` report includes `review_tier`, `standards` and `adjudication`. The `ai-review` command explicitly runs local specialist model requests. Model-generated findings remain unverified; agent failure yields a nonzero CLI exit status. No GitHub PR posting or merge enforcement exists.
+
+## R5–R6: PR publishing and review calibration (v1.7.0)
+
+**R5** adds opt-in, human-approved GitHub inline PR comments with stale-head protection, exact changed-line verification, comment fingerprint deduplication, and local incremental re-review checkpoints. A plain review never posts to GitHub.
+
+**R6** adds independently human-labeled quality metrics (precision, recall, F1, severity agreement, false alarms on clean PRs), observed Ollama token/latency metrics, and offline shadow/canary regression comparison.
+
+```bash
+# No network: preview approved inline PR findings
+daddy-reviews pr-publish --repo OWNER/REPO --pr 123 --report-file approved.json
+# GitHub write requires --apply, human-approved verified findings, token and pinned PR HEAD
+daddy-reviews pr-publish --repo OWNER/REPO --pr 123 --report-file approved.json \
+  --expected-head-sha 0123456789abcdef0123456789abcdef01234567 --apply
+
+# Rerun diff selection and explicit state checkpoint
+daddy-reviews rerun --root . --base origin/main --head "$(git rev-parse HEAD)" \
+  --state-file .daddy-rerun.json --save-state
+
+# Human-labeled quality and cost/performance evaluation
+daddy-reviews quality-eval --dataset evals/quality_synthetic.json
+daddy-reviews quality-compare --baseline-dataset evals/quality_synthetic.json \
+  --candidate-dataset evals/quality_synthetic.json
+daddy-reviews telemetry --report-file reviewed-run.json
+```
+
+See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
 ## Install and test
 
