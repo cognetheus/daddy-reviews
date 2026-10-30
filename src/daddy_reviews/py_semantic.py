@@ -499,8 +499,8 @@ def index_python(root: Path, changed_path: str, symbol: str,
     ordered = sorted(references, key=lambda r: (
         r.location.path, r.location.start_line, r.relationship))
     answer["references"] = [
-        {**asdict(r), "provenance_modules": list(sorted(provenance[(
-            r.location.path, r.location.start_line, r.relationship)]))}
+        {**asdict(r), "provenance_modules": [list(chain) for chain in sorted(provenance[(
+            r.location.path, r.location.start_line, r.relationship)])]}
         for r in ordered
     ]
     answer["abstentions"] = abstentions
