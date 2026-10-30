@@ -39,3 +39,7 @@ jobs:
       - run: python -m daddy_reviews.cli symbol-impact --root . --changed src/daddy_reviews/graph.py --symbol build_graph > /dev/null
       - run: pytest -q tests/test_python_reexports.py
       - run: pytest -q tests/test_js_symbols.py
+      - run: |
+          python -m daddy_reviews.cli snapshot --root . > /tmp/daddy-reviews-semantic-snapshot.json
+          python -m daddy_reviews.cli snapshot-verify --root . --snapshot-file /tmp/daddy-reviews-semantic-snapshot.json > /dev/null
+      - run: pytest -q tests/test_semantic_contracts.py tests/test_r7_context_scenarios.py
