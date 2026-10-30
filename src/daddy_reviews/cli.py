@@ -18,11 +18,12 @@ from .graph_cache import GraphCacheError, graph_with_cache
 from .python_symbols import SymbolImpactError, python_symbol_impact
 from .js_symbols import JSSymbolImpactError, js_symbol_impact
 from .js_graph import EXTENSIONS
+from .standards import evaluate_standards
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--task',default='Review pull request')
     parser.add_argument('--changed',nargs='*',default=[])
@@ -107,6 +108,8 @@ def main(argv=None):
             data=compare_openapi(read_contract(Path(args.base_contract)),read_contract(Path(args.head_contract)))
         except (ContractError,OSError) as exc:
             parser.error(str(exc))
+    elif args.command=='standards':
+        data=evaluate_standards(root,args.changed)
     elif args.command=='review':
         try:
             patch=Path(args.diff_file).read_text(encoding='utf-8') if args.diff_file else git_diff(root,args.base,args.head)
