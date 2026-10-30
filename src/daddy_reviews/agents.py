@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import ipaddress
 import json
 from pathlib import Path
+from time import perf_counter
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from urllib.error import HTTPError, URLError
@@ -138,6 +139,12 @@ def local_ollama_provider(model: str, base_url: str = "http://127.0.0.1:11434",
             raise AgentRuntimeError("Local model returned invalid JSON") from exc
         if not isinstance(parsed, dict):
             raise AgentRuntimeError("Model content must contain a JSON object")
+        # Usage comes from the Ollama response envelope, never model-supplied JSON.
+        # Missing usage stays unavailable, not artificially zero.
+        inbound, outbound = response.get("prompt_eval_count"), response.get("eval_count")
+        parsed["_usage"] = ({"input_tokens": inbound, "output_tokens": outbound}
+                            if type(inbound) is int and inbound >= 0
+                            and type(outbound) is int and outbound >= 0 else None)
         return parsed
 
     return ask
@@ -201,16 +208,33 @@ def review_with_specialists(root: Path, patch: str, provider: Callable[[str, str
     # Parallel calls have individual provider deadlines, not a global deadline.
     status = {}
     all_findings = []
+    def measured(reviewer):
+        started = perf_counter()
+        try:
+            return provider(reviewer, shared), round((perf_counter() - started) * 1000, 2), None
+        except Exception as exc:
+            return None, round((perf_counter() - started) * 1000, 2), type(exc).__name__
+
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = {pool.submit(provider, name, shared): name for name in reviewer_names}
+        futures = {pool.submit(measured, name): name for name in reviewer_names}
         for future in as_completed(futures):
             name = futures[future]
+            raw, latency_ms, provider_error = future.result()
+            usage = raw.get("_usage") if isinstance(raw, dict) else None
+            if (not isinstance(usage, dict) or
+                    any(type(usage.get(k)) is not int or usage[k] < 0
+                        for k in ("input_tokens", "output_tokens"))):
+                usage = None
             try:
-                findings = _normalize(future.result(), name, allowed)
+                if provider_error:
+                    raise AgentRuntimeError(provider_error)
+                findings = _normalize(raw, name, allowed)
             except Exception as exc:
-                status[name] = {"status": "failed", "reason": type(exc).__name__}
+                status[name] = {"status": "failed", "reason": type(exc).__name__,
+                                "latency_ms": latency_ms, "usage": usage}
             else:
-                status[name] = {"status": "completed", "finding_count": len(findings)}
+                status[name] = {"status": "completed", "finding_count": len(findings),
+                                "latency_ms": latency_ms, "usage": usage}
                 all_findings.extend(findings)
     # Stable order even when different model requests finish at different times.
     all_findings.sort(key=lambda x: (x["path"], x["line"], x["rule"], x["reviewer"]))
@@ -231,5 +255,6 @@ def review_with_specialists(root: Path, patch: str, provider: Callable[[str, str
             "Model responses cannot grant themselves confirmed status or merge authority.",
             "Only an explicitly requested localhost model can run; no cloud provider, tools or posting.",
             "Per-request timeouts apply; there is no total orchestration deadline or failover.",
+            "Model usage tokens are recorded only when reported by Ollama; local cost is not inferred.",
         ],
     }
