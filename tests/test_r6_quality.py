@@ -118,3 +118,10 @@ def test_invalid_latency_or_usage_or_rate_rejected():
             {"status": "failed", "latency_ms": 1,
              "usage": {"input_tokens": 3, "output_tokens": -2}}
         ]}])
+
+
+def test_nonfinite_latency_is_not_valid_telemetry():
+    with pytest.raises(QualityError):
+        summarize_runtime([{"reviewer_runs": [
+            {"status": "completed", "latency_ms": float("nan"), "usage": None}
+        ]}])
