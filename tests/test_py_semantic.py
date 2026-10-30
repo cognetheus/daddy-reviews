@@ -214,3 +214,24 @@ def test_duplicate_local_import_name_never_inherits_parent_symbol(tmp_path):
           "    return run()\n")
     result = index_python(tmp_path, "src/one.py", "run")
     assert result["references"] == []
+
+
+def test_imported_class_type_annotations_and_class_decorators(tmp_path):
+    write(tmp_path, "lib.py",
+          "def decorate(cls): return cls\n"
+          "class Base:\n"
+          "    pass\n")
+    write(tmp_path, "consumer.py",
+          "from lib import Base as Parent, decorate\n"
+          "@decorate\n"
+          "class C:\n"
+          "    pass\n"
+          "def endpoint(input: Parent) -> Parent:\n"
+          "    return input\n"
+          "value: Parent\n")
+    base = index_python(tmp_path, "lib.py", "Base")
+    decorator = index_python(tmp_path, "lib.py", "decorate")
+    assert base["status"] == "complete"
+    assert ("consumer.py", 5, "type_annotation_candidate") in positions(base)
+    assert ("consumer.py", 7, "type_annotation_candidate") in positions(base)
+    assert ("consumer.py", 2, "decorator_reference") in positions(decorator)
