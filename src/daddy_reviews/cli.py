@@ -25,7 +25,7 @@ from .github_publish import PublicationError, publish
 from .rerun import RerunError, plan_rerun, read_state, save_state
 from .quality import QualityError, read_quality_dataset, score_quality, summarize_runtime
 from .calibration import compare_quality
-from .semantic_contracts import SemanticContractError, capture_worktree, read_snapshot, verify_worktree
+from .semantic_contracts import SemanticContractError, capture_worktree, read_snapshot as read_source_snapshot, verify_worktree
 
 
 def main(argv=None):
@@ -81,7 +81,7 @@ def main(argv=None):
         if not args.snapshot_file:
             parser.error('snapshot-verify requires --snapshot-file')
         try:
-            data=verify_worktree(root,read_snapshot(Path(args.snapshot_file)))
+            data=verify_worktree(root,read_source_snapshot(Path(args.snapshot_file)))
         except (SemanticContractError,OSError) as exc:
             parser.error(str(exc))
     elif args.command=='plan':
