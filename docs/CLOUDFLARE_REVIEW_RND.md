@@ -27,7 +27,7 @@ Cloudflare's Engineering Codex uses RFC-style ownership, MUST/SHOULD requirement
 Cloudflare uses a coordinator to deduplicate, recategorize and reject speculative specialist findings. Daddy Reviews includes a deterministic, nonblocking adjudicator. It merges identical assertions, surfaces contradictions, and requires an explicit verification artifact before escalating a claimed confirmed severe candidate to **human block review**. No automated approval or GitHub write is performed.
 
 ### 5. Agent execution belongs behind verification and budgets
-Cloudflare uses separate OpenCode sessions, retryable-error classification, timeouts, circuit breakers, remote configuration and usage tracking. This project still has **no hosted agent pool**: `recommended_reviewers` is a plan, not a claim that external reviewers ran. Implementation should come after cost/quality eval gates, read-only isolation and credentials policy.
+Cloudflare uses separate OpenCode sessions, retryable-error classification, timeouts, circuit breakers, remote configuration and usage tracking. A **local-only opt-in reviewer runtime** is now available via `ai-review`. It uses actual parallel specialist model requests via the local Ollama HTTP API, never exposes tools to model sessions, validates changed-line citations, and treats all model claims as unverified. A plain `review` remains deterministic and makes no model calls. Hosted execution, cost tracking, circuit breakers and total orchestration deadlines are not implemented.
 
 ### 6. Evals and cost are production features
 Cloudflare's October optimization write-up notes prompt-cache prefix placement, model/effort experiments, concurrency and shadow mode. Before introducing an LLM executor, measure reviewer agreement on labeled PRs, true defect precision/recall, false-alarm rate, review p95 latency, token/cost by tier, provider failure behavior and reviewer usefulness.
@@ -40,9 +40,19 @@ Cloudflare's October optimization write-up notes prompt-cache prefix placement, 
 | **R1 — adaptive scope** | `triage.assess_review_tier()`: tier, reviewers, file-context hints, guardrails | Tests: security tiny change → full; migration never hidden; empty diff abstains |
 | **R2 — governed rules** | `standards.evaluate_standards()`: schema validation, explicit applicability and governance metadata | No implicit violation or merge block; unsafe catalogs abstain |
 | **R3 — evidence coordinator** | `adjudication.adjudicate()`: deterministic deduplication, disagreement, proof gate | No autonomous comments, approvals or merge blocking |
-| **R4 — agent runtime** | *Not implemented*: sandboxed provider adapter and actual concurrent reviewers | Requires isolation, credential strategy, retry budget, cost tracking, per-tier evals |
+| **R4 — local agent runtime** | **Implemented:** explicit CLI opt-in, localhost Ollama provider, concurrent specialist calls, output budgets, source-line validation and fail-closed reports | Fake-provider and local HTTP transport tests; live model quality not measured |
 | **R5 — CI posting and reruns** | *Not implemented*: GitHub checks/comments, stable finding identities, re-review tracking | Explicit user opt-in, least privilege, idempotency, human override |
 | **R6 — quality and cost calibration** | *Not implemented*: labeled real-world PR corpus, canary/shadow A/B, cost/latency dashboards | Measured false-positive and severity reliability |
+
+## Local specialist execution (R4)
+
+```bash
+# Start Ollama separately, ensure the chosen model is installed.
+# Invoke explicitly; default review remains offline and deterministic.
+daddy-reviews ai-review --root . --base origin/main --head HEAD --model YOUR_LOCAL_MODEL
+```
+
+The adapter accepts only loopback HTTP origins (default `127.0.0.1:11434`), refuses redirects, caps input/output sizes, restricts locations to added changed lines, limits concurrency to three and requires per-request timeouts. It sends the patch to the local Ollama process, so the caller must ensure that process and machine are trusted. Any failed specialist marks the overall result incomplete, and the CLI exits nonzero. Local mocked transport and fake providers are CI-tested; no real-model accuracy or token cost has been measured.
 
 ## CLI examples
 
@@ -66,8 +76,8 @@ No automatic `state=enforced` blocking exists. That will require independent con
 
 ## Non-goals and honest limitations
 
-- This release does **not** reproduce Cloudflare's seven-agent reviewer or its measured production metrics.
-- No real model calls, sub-agent sessions, provider failover, GitHub comments, or merge controls were added.
+- This release does **not** reproduce Cloudflare's proprietary reviewer infrastructure or measured production metrics.
+- Real *local model* requests are opt-in; Cloudflare's hosted OpenCode sessions, provider failover, GitHub comments, and merge controls are not implemented.
 - A path-based tier is only a routing hint; subtle logic or supply-chain risks require deeper review.
 - A filename-glob policy match does not imply a violated standard.
 - Replaying a syntax pattern is not evidence of exploitability or business consequence.
