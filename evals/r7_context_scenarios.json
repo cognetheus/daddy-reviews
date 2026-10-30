@@ -1,0 +1,101 @@
+{
+  "format": "daddy-reviews-r7-synthetic-scenarios-v1",
+  "label_status": "synthetic_specification_not_human_verified",
+  "disclaimer": "Illustrative expected consumer relationships for future R7 semantic adapters. Not real PR ground truth, not proof of reachable calls, and not scored as model defect-detection precision.",
+  "cases": [
+    {
+      "id": "python-auth-impact",
+      "language": "python",
+      "focus": "Changed authorization guard and downstream import binding",
+      "files": {
+        "src/auth.py": "def authorize(user, tenant):\n    return user.tenant == tenant\n",
+        "src/api.py": "from src.auth import authorize\n\ndef read(user, tenant):\n    if not authorize(user, tenant):\n        raise PermissionError()\n    return True\n",
+        "tests/test_auth.py": "from src.api import read\n\ndef test_cross_tenant():\n    assert callable(read)\n"
+      },
+      "query": {
+        "path": "src/auth.py",
+        "symbol": "authorize"
+      },
+      "expected_reference_candidates": [
+        {
+          "path": "src/api.py",
+          "line": 4,
+          "relationship": "import_bound_call"
+        }
+      ],
+      "expected_test_candidates": [
+        "tests/test_auth.py"
+      ],
+      "expected_abstentions": []
+    },
+    {
+      "id": "typescript-barrel-reexport",
+      "language": "typescript",
+      "focus": "Named re-export through barrel; requires TypeScript compiler resolution",
+      "files": {
+        "src/core.ts": "export function calculateTax(amount: number) { return amount * 0.2; }\n",
+        "src/index.ts": "export { calculateTax as tax } from './core';\n",
+        "src/checkout.ts": "import { tax } from './index';\nexport const calculateTotal = (n: number) => n + tax(n);\n",
+        "src/irrelevant.ts": "// calculateTax is mentioned but not called\n"
+      },
+      "query": {
+        "path": "src/core.ts",
+        "symbol": "calculateTax"
+      },
+      "expected_reference_candidates": [
+        {
+          "path": "src/checkout.ts",
+          "line": 2,
+          "relationship": "compiler_resolved_reexport_call"
+        }
+      ],
+      "expected_test_candidates": [],
+      "expected_abstentions": []
+    },
+    {
+      "id": "typescript-shadowed-local",
+      "language": "typescript",
+      "focus": "Syntactically similar identifier but shadowed binding must not be invented as same symbol",
+      "files": {
+        "src/lib.ts": "export function authorize(x: unknown) { return Boolean(x); }\n",
+        "src/other.ts": "import { authorize } from './lib';\nexport function run() { const authorize = () => true; return authorize(); }\n"
+      },
+      "query": {
+        "path": "src/lib.ts",
+        "symbol": "authorize"
+      },
+      "expected_reference_candidates": [],
+      "expected_test_candidates": [],
+      "expected_abstentions": [
+        {
+          "path": "src/other.ts",
+          "reason": "local_binding_shadowing"
+        }
+      ]
+    },
+    {
+      "id": "clean-nonsemantic-change",
+      "language": "python",
+      "focus": "Non-impacting comment change should not force a defect finding",
+      "files": {
+        "src/math_utils.py": "def square(n):\n    return n * n\n",
+        "tests/test_math_utils.py": "from src.math_utils import square\n\ndef test_square():\n    assert square(3) == 9\n"
+      },
+      "query": {
+        "path": "src/math_utils.py",
+        "symbol": "square"
+      },
+      "expected_reference_candidates": [
+        {
+          "path": "tests/test_math_utils.py",
+          "line": 4,
+          "relationship": "test_call_candidate"
+        }
+      ],
+      "expected_test_candidates": [
+        "tests/test_math_utils.py"
+      ],
+      "expected_abstentions": []
+    }
+  ]
+}
