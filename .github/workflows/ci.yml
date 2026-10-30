@@ -16,6 +16,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix tooling/typescript --ignore-scripts --no-audit --no-fund --no-package-lock
+      - run: node -e "const v=require('./tooling/typescript/node_modules/typescript/package.json').version; if(v!=='6.0.3') process.exit(1)"
       - run: python -m pip install -e . pytest
       - run: pytest -q
       - run: python -m daddy_reviews.cli plan --task 'Review PR' --changed src/auth/tenant.py
