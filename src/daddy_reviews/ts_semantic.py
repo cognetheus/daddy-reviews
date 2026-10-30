@@ -156,7 +156,8 @@ def index_typescript(root: Path, changed_path: str, symbol: str,
         for r in refs:
             if (not isinstance(r, dict) or
                     r.get("relationship") not in {"direct_call", "constructor_call",
-                                                  "member_call", "property_reference"}):
+                                                  "member_call", "property_reference",
+                                                  "type_reference", "heritage_reference"}):
                 raise SemanticContractError("Malformed compiler reference")
             source = bound_span(state, r["path"], r["line"], r["line"],
                                 "compiler", "resolved")
