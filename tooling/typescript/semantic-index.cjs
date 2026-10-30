@@ -62,6 +62,10 @@ function isDeclaration(node) {
     ts.isEnumDeclaration(node);
 }
 function invocationName(node) {
+  if (ts.isIdentifier(node) && ts.isTypeReferenceNode(node.parent) &&
+      node.parent.typeName === node) return "type_reference";
+  if (ts.isIdentifier(node) && ts.isExpressionWithTypeArguments(node.parent) &&
+      node.parent.expression === node) return "heritage_reference";
   if (ts.isIdentifier(node) && ts.isCallExpression(node.parent) &&
       node.parent.expression === node) return "direct_call";
   if (ts.isIdentifier(node) && ts.isNewExpression(node.parent) &&
