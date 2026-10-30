@@ -84,6 +84,7 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - **R1 (adaptive scope) delivered:** read-only deterministic `review_tier` calculation, file/line thresholds, sensitive-boundary escalation, context-only noise hints, and migration/generated-code exception fixtures.
 - **R2 (policy source) delivered:** opt-in `standards.json` catalog with owner-authored IDs, MUST/SHOULD level, advisory/enforced lifecycle, relative glob matching, safe validation and mandatory abstention for unverified compliance.
 - **R3 (evidence consolidation) delivered:** same-finding coalescing, reviewer contradictions, explicit verification-artifact checking, human block-review candidates, and no merge writes.
-- **R4–R6 not delivered:** genuine model sub-agent sessions, shadow-evaluated provider adapters, circuit breakers, GitHub review posting/reviews, incremental re-review state, labeled bug corpus and cost-quality dashboards remain independent follow-on milestones.
+- **R4 delivered (local):** explicit opt-in localhost Ollama provider, parallel specialist calls, bounded inputs, validation and incomplete-run reporting. Fake/local HTTP tests only; real-model quality not evaluated.
+- **R5–R6 pending:** hosted providers and circuit breakers, PR posting, rerun state, calibrated evaluations and cost telemetry.
 
 **Release invariant:** avoid promoting static candidates to proven defects, or route hints to performed reviews. No unsolicited autonomous review comments and no automated merge blocking.
