@@ -174,3 +174,42 @@ def test_py_semantic_cli_reports_source_hashes(tmp_path, capsys):
     assert payload["definition"]["path"] == "src/core.py"
     assert payload["references"][0]["target_location"]["source_sha256"] == payload["definition"]["source_sha256"]
     assert payload["runtime_calls_proven"] is False
+
+
+def test_receiver_reassigned_inside_branch_does_not_stay_bound_to_class(tmp_path):
+    write(tmp_path, "src/client.py",
+          "class Client:\n"
+          "    def submit(self): return True\n")
+    write(tmp_path, "other.py",
+          "from src.client import Client as C\n"
+          "client = C()\n"
+          "if flag:\n"
+          "    client = object()\n"
+          "client.submit()\n")
+    result = index_python(tmp_path, "src/client.py", "Client.submit")
+    assert result["status"] == "complete"
+    assert result["references"] == []
+
+
+def test_local_import_before_call_is_candidate_but_earlier_call_abstains(tmp_path):
+    write(tmp_path, "src/service.py", "def run(): return True\n")
+    write(tmp_path, "app.py",
+          "def caller():\n"
+          "    run()\n"
+          "    from src.service import run\n"
+          "    return run()\n")
+    result = index_python(tmp_path, "src/service.py", "run")
+    assert result["status"] == "complete"
+    assert positions(result) == {("app.py", 4, "direct_call_candidate")}
+
+
+def test_duplicate_local_import_name_never_inherits_parent_symbol(tmp_path):
+    write(tmp_path, "src/one.py", "def run(): return True\n")
+    write(tmp_path, "src/two.py", "def run(): return False\n")
+    write(tmp_path, "app.py",
+          "from src.one import run\n"
+          "def caller():\n"
+          "    from src.two import run\n"
+          "    return run()\n")
+    result = index_python(tmp_path, "src/one.py", "run")
+    assert result["references"] == []
