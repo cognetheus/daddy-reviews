@@ -110,4 +110,12 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Real pinned TypeScript 6.0.3 compiler execution is exercised in CI on Python 3.10, 3.12 and 3.13, alongside the pre-existing suite.
 - Remaining gaps: multi-project TypeScript monorepo resolution, persistent symbol index, semantic-context ranking, full JS/TS structural call graph, dynamic consumers, and external packages. See [R7.02 technical documentation](R7_TYPESCRIPT_COMPILER.md).
 
-**Next: R7.03** — Python semantic indexing, Python LSP/AST provenance and separately validated import/call references.
+### R7.03 — Python scope-aware AST semantic indexing (v1.10.0)
+
+- Delivered opt-in `py-semantic` for target `Symbol` or `Class.method` queries, with strictly snapshot-bound source spans and candidate-only call classification.
+- Supports unambiguous relative/direct module imports, import aliases, unconditional re-export provenance, async functions, class constructors, decorators, base-class relationships, and conservative typed receiver method inference.
+- Blocks unsupported or ambiguous bindings, lexical shadowing, rebinding, use-before-local-import, incomplete scans, invalid target symbols and stale sources.
+- Uses only Python's standard `ast` module and source-hash contracts; **no language server or whole-program type inference** is claimed. LSP integration remains an optional later adapter.
+- Added CI fixtures for positive and negative import/method cases, symlink/incomplete/ambiguous source behavior, and CLI provenance checks. See [R7.03 design](R7_PYTHON_SEMANTICS.md).
+
+**Next: R7.04** — Java/JDT and C#/.NET/Roslyn semantic adapters, each with explicit supported versions, source provenance and validated limitations.
