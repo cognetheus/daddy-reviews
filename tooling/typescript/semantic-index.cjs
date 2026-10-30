@@ -49,7 +49,15 @@ function canonicalSymbol(checker, symbol) {
   return symbol;
 }
 function symbolMatches(checker, candidate, target) {
-  return canonicalSymbol(checker, candidate) === target;
+  const canonical = canonicalSymbol(checker, candidate);
+  if (!canonical) return false;
+  if (canonical === target) return true;
+  // The type checker can expose a fresh instantiated method symbol for an
+  // imported class. Require the same declaration node, not a matching name.
+  const origin = target.declarations || [];
+  return (canonical.declarations || []).some(d => origin.some(t =>
+    d.getSourceFile().fileName === t.getSourceFile().fileName &&
+    d.getStart() === t.getStart() && d.getEnd() === t.getEnd()));
 }
 function traverse(node, visitor) {
   visitor(node);
@@ -213,7 +221,16 @@ function run(req) {
       const relationship = invocationName(node);
       if (!relationship) return;
       const symbol = checker.getSymbolAtLocation(node);
-      if (!symbolMatches(checker, symbol, target)) return;
+      let matched = symbolMatches(checker, symbol, target);
+      if (!matched && ts.isPropertyAccessExpression(node.parent) &&
+          node.parent.name === node) {
+        // Use the receiver's compiler-resolved type for instantiated members.
+        // In particular, never infer a match from the property spelling alone.
+        const receiverType = checker.getTypeAtLocation(node.parent.expression);
+        const member = checker.getPropertyOfType(receiverType, node.text);
+        matched = symbolMatches(checker, member, target);
+      }
+      if (!matched) return;
       const loc = safeLocation(node);
       if (!loc) return;
       const key = loc.path + ":" + loc.line + ":" + relationship;
