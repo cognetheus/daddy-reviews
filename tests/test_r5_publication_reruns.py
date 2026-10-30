@@ -113,3 +113,38 @@ def test_corrupt_or_symlink_state_fails_closed():
         state.symlink_to(root / "other")
         with pytest.raises(RerunError):
             save_state(state, plan_rerun(root, DIFF, HEAD)["state"])
+
+
+def test_rerun_revalidates_head_even_when_complete_diff_is_identical():
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        before = plan_rerun(root, DIFF, HEAD)['state']
+        newer = plan_rerun(root, DIFF, 'b' * 40, before)
+    assert newer['action'] == 'revalidate_head'
+    assert newer['head_changed']
+    assert newer['selected_reviewers'] == []
+
+
+def test_removed_prior_diff_file_requeues_full_review():
+    first = (
+        'diff --git a/app.py b/app.py\n'
+        'new file mode 100644\n--- /dev/null\n+++ b/app.py\n'
+        '@@ -0,0 +1 @@\n+new\n'
+        'diff --git a/src/auth/token.py b/src/auth/token.py\n'
+        'new file mode 100644\n--- /dev/null\n+++ b/src/auth/token.py\n'
+        '@@ -0,0 +1 @@\n+unsafe\n'
+    )
+    second = (
+        'diff --git a/app.py b/app.py\n'
+        'new file mode 100644\n--- /dev/null\n+++ b/app.py\n'
+        '@@ -0,0 +1 @@\n+new\n'
+    )
+    with TemporaryDirectory() as d:
+        root = Path(d)
+        older = plan_rerun(root, ''.join(first), HEAD)['state']
+        new = plan_rerun(root, ''.join(second), 'b' * 40, older)
+    assert new['action'] == 'review_changed'
+    assert new['removed_files'] == ['src/auth/token.py']
+    assert new['risk_tier'] == 'full'
+    assert new['reanalysis_scope'] == 'entire_current_patch'
+    assert 'security' in new['selected_reviewers']
