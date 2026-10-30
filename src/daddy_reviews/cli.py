@@ -24,13 +24,16 @@ from .agents import AgentRuntimeError, local_ollama_provider, review_with_specia
 from .github_publish import PublicationError, publish
 from .rerun import RerunError, plan_rerun, read_state, save_state
 from .quality import QualityError, read_quality_dataset, score_quality, summarize_runtime
+from .calibration import compare_quality
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
+    parser.add_argument('--baseline-dataset',help='Baseline human-labeled reviewer predictions')
+    parser.add_argument('--candidate-dataset',help='Candidate predictions on identical case labels')
     parser.add_argument('--pr',type=int,help='GitHub pull request number')
     parser.add_argument('--expected-head-sha',help='Pinned PR HEAD for write approval')
     parser.add_argument('--apply',action='store_true',help='Explicitly publish reviewed GitHub comments')
@@ -162,6 +165,14 @@ def main(argv=None):
     elif args.command=='quality-eval':
         try:
             data=score_quality(read_quality_dataset(Path(args.dataset)))
+        except (QualityError,OSError) as exc:
+            parser.error(str(exc))
+    elif args.command=='quality-compare':
+        if not args.baseline_dataset or not args.candidate_dataset:
+            parser.error('quality-compare requires --baseline-dataset and --candidate-dataset')
+        try:
+            data=compare_quality(read_quality_dataset(Path(args.baseline_dataset)),
+                                 read_quality_dataset(Path(args.candidate_dataset)))
         except (QualityError,OSError) as exc:
             parser.error(str(exc))
     elif args.command=='telemetry':
