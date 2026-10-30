@@ -19,11 +19,12 @@ from .python_symbols import SymbolImpactError, python_symbol_impact
 from .js_symbols import JSSymbolImpactError, js_symbol_impact
 from .js_graph import EXTENSIONS
 from .standards import evaluate_standards
+from .adjudication import adjudicate
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--task',default='Review pull request')
     parser.add_argument('--changed',nargs='*',default=[])
@@ -107,6 +108,13 @@ def main(argv=None):
         try:
             data=compare_openapi(read_contract(Path(args.base_contract)),read_contract(Path(args.head_contract)))
         except (ContractError,OSError) as exc:
+            parser.error(str(exc))
+    elif args.command=='adjudicate':
+        if not args.report_file:
+            parser.error('adjudicate requires --report-file')
+        try:
+            data=adjudicate(read_report(Path(args.report_file))['findings'])
+        except (EvidenceError,OSError) as exc:
             parser.error(str(exc))
     elif args.command=='standards':
         data=evaluate_standards(root,args.changed)
