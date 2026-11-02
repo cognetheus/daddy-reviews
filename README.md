@@ -53,6 +53,17 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
+## R7.05 — Cross-layer dependency intelligence (v1.12.0)
+
+**New:** a snapshot-bound, **read-only candidate graph** across literal JS/TS HTTP calls → unique FastAPI endpoints → imported Python service functions → ORM model/table declarations and published event topics → subscribed consumers. All edges cite exact source-file hashes and lines. Unsupported dynamic routes/imports/queries abstain rather than creating false certainty.
+
+```bash
+# Return bounded source-linked graph and inbound/outbound impact paths
+daddy-reviews cross-layer --root . --changed app/services.py --max-depth 5
+```
+
+This first vertical slice supports exact literal HTTP routes, simple module import bindings, SQLAlchemy-like model uses, and literal event topics. It **does not** integrate full NestJS/Express, Spring, ASP.NET, DTO serialization, generated schemas, or automatic verified runtime traces yet. [R7.05 scope and evidence rules](docs/R7_CROSS_LAYER.md).
+
 ## R7.04 — Java and C#/.NET compiler semantic analysis (v1.11.0)
 
 **New:** opt-in Java (`javac` Trees) and C#/.NET (Roslyn SDK) semantic adapters with **compiler-resolved method, constructor, and type-reference identity**. Each output is bounded and bound to an R7.01 source snapshot; unresolved external dependencies produce partial coverage rather than a fabricated clean result.
