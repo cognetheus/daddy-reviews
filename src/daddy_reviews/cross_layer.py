@@ -244,6 +244,7 @@ def build_cross_layer(root: Path, snapshot: dict | None = None) -> dict:
     imported = {path: _imports(path, tree, aliases) for path, tree in trees.items()}
     functions = {}
     classes = {}
+    competing = set()
     nodes = {}
     edges = {}
     abstentions = []
@@ -279,16 +280,34 @@ def build_cross_layer(root: Path, snapshot: dict | None = None) -> dict:
 
     for path, tree in sorted(trees.items()):
         for item in tree.body:
-            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                functions[(path, item.name)] = item
-                node("function", path, item.lineno, item.name)
-            elif isinstance(item, ast.ClassDef):
-                classes[(path, item.name)] = item
-                table = _table(item)
-                if table:
-                    cls = node("model", path, item.lineno, item.name)
-                    target = resource("table", table[0], path, table[1])
-                    edge(cls, target, "declares_table_candidate", path, table[1])
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                key = (path, item.name)
+                if key in functions or key in classes:
+                    competing.add(key)
+                    abstain(path, item.lineno, "duplicate_module_declaration")
+                    continue
+                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    functions[key] = item
+                    node("function", path, item.lineno, item.name)
+                else:
+                    classes[key] = item
+                    table = _table(item)
+                    if table:
+                        cls = node("model", path, item.lineno, item.name)
+                        target = resource("table", table[0], path, table[1])
+                        edge(cls, target, "declares_table_candidate", path, table[1])
+    for key in competing:
+        functions.pop(key, None)
+        classes.pop(key, None)
+    # Discard ambiguous declaration nodes and their model/table edges.
+    stale_ids = {key for key, record in nodes.items()
+                 if record["kind"] in ("function", "model") and
+                 (record["source"]["path"], record["name"]) in competing}
+    for stale in stale_ids:
+        nodes.pop(stale, None)
+    edges = {k: e for k, e in edges.items()
+             if e["source"] not in stale_ids and e["target"] not in stale_ids}
+
     def function_id(path, fn):
         return f"function:{path}:{fn.lineno}:{fn.name}"
     def model_id(path, cl):
@@ -443,15 +462,17 @@ def cross_layer_impact(graph: dict, changed: list[str], depth: int = 4) -> dict:
                 queue.append((next_id, route))
                 if len(result) >= MAX_RESULTS:
                     break
-        return result
+        return result, bool(queue)
     known = {n["source"]["path"] for n in graph["nodes"]}
+    inbound, inbound_truncated = walk(reverse)
+    outbound, outbound_truncated = walk(forward)
     return {
         "changed": sorted(set(changed)),
         "unindexed_changed": sorted(set(changed) - known),
-        "inbound_dependents": walk(reverse),
-        "outbound_dependencies": walk(forward),
+        "inbound_dependents": inbound,
+        "outbound_dependencies": outbound,
         "max_depth": depth,
         "classification": "source-backed_static_candidate_only",
-        "truncated": len(graph["abstentions"]) >= MAX_ABSTENTIONS,
+        "truncated": inbound_truncated or outbound_truncated or len(graph["abstentions"]) >= MAX_ABSTENTIONS,
         "interpretation": "Candidate impact chains, not confirmed executed paths or defects.",
     }
