@@ -66,4 +66,8 @@ jobs:
           python -m daddy_reviews.cli snapshot-verify --root . --snapshot-file /tmp/daddy-reviews-semantic-snapshot.json > /dev/null
       - run: pytest -q tests/test_semantic_contracts.py tests/test_r7_context_scenarios.py
       - run: pytest -q tests/test_py_semantic.py
+      - name: Require cross-layer evidence and ambiguity regressions
+        run: pytest -q tests/test_cross_layer.py
+      - name: Verify cross-layer CLI on repository sources
+        run: python -m daddy_reviews.cli cross-layer --root . --changed src/daddy_reviews/cross_layer.py --max-depth 4 > /dev/null
       - run: python -m daddy_reviews.cli py-semantic --root . --changed src/daddy_reviews/py_semantic.py --symbol index_python > /dev/null
