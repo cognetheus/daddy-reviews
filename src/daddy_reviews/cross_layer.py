@@ -363,7 +363,7 @@ def build_cross_layer(root: Path, snapshot: dict | None = None) -> dict:
                         argument = argument.func
                     if isinstance(argument, ast.Name):
                         target = resolve_name(path, argument.id, blocked)
-                        if target in classes:
+                        if target in classes and model_id(target[0], classes[target]) in nodes:
                             edge(here, model_id(target[0], classes[target]),
                                  "orm_model_use_candidate", path, call.lineno)
                         else:
@@ -380,7 +380,7 @@ def build_cross_layer(root: Path, snapshot: dict | None = None) -> dict:
                 candidate = call.args[0]
                 if isinstance(candidate, ast.Name):
                     target = resolve_name(path, candidate.id, blocked)
-                    if target in classes:
+                    if target in classes and model_id(target[0], classes[target]) in nodes:
                         edge(here, model_id(target[0], classes[target]),
                              "orm_model_select_candidate", path, call.lineno)
     # Topic subscriptions produce an explicit topic -> subscribed function edge.
