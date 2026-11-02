@@ -259,3 +259,74 @@ def test_query_params_and_route_parameters_need_future_contract_mapping(tmp_path
     g = build_cross_layer(tmp_path)
     assert not edges(g, "literal_http_route_candidate")
     assert any(a["reason"] == "dynamic_or_unsupported_http_call" for a in g["abstentions"])
+
+
+def test_fastapi_pydantic_dto_and_alembic_migration_evidence(tmp_path):
+    fixture(tmp_path)
+    write(tmp_path, "app/contracts.py",
+          "from pydantic import BaseModel\n"
+          "class UserOut(BaseModel):\n"
+          "    name: str\n"
+          "class UserIn(BaseModel):\n"
+          "    name: str\n")
+    write(tmp_path, "app/api.py",
+          "from fastapi import FastAPI\n"
+          "from app.services import get_user\n"
+          "from app.contracts import UserOut, UserIn\n"
+          "app = FastAPI()\n"
+          "@app.post('/api/users', response_model=UserOut)\n"
+          "def read_user(payload: UserIn):\n"
+          "    return get_user()\n")
+    write(tmp_path, "frontend/client.ts",
+          "fetch('/api/users', {method:'POST'});\n")
+    write(tmp_path, "migrations/versions/0001_users.py",
+          "from alembic import op\n"
+          "def upgrade():\n"
+          "    op.create_table('users')\n")
+    g = build_cross_layer(tmp_path)
+    assert g["status"] == "complete", g["warnings"]
+    assert len(edges(g, "http_response_dto_candidate")) == 1
+    assert len(edges(g, "http_request_dto_candidate")) == 1
+    assert len(edges(g, "migration_create_table_candidate")) == 1
+    assert len(edges(g, "literal_http_route_candidate")) == 1
+    ids = {n["id"]: n for n in g["nodes"]}
+    for edge in edges(g, "http_response_dto_candidate") + edges(g, "http_request_dto_candidate"):
+        assert ids[edge["target"]]["kind"] == "dto"
+        assert edge["evidence"]["source_sha256"]
+    table_links = edges(g, "migration_create_table_candidate")
+    assert ids[table_links[0]["target"]]["name"] == "users"
+    assert ids[table_links[0]["source"]]["kind"] == "migration"
+
+
+def test_non_pydantic_class_and_dynamic_response_do_not_claim_dto(tmp_path):
+    fixture(tmp_path)
+    write(tmp_path, "app/contracts.py", "class UserOut:\n    pass\n")
+    write(tmp_path, "app/api.py",
+          "from fastapi import FastAPI\n"
+          "from app.contracts import UserOut\n"
+          "app=FastAPI()\n"
+          "@app.get('/api/users', response_model=UserOut)\n"
+          "def read_user(): return 1\n")
+    g = build_cross_layer(tmp_path)
+    assert not edges(g, "http_response_dto_candidate")
+    assert any(x["reason"] == "response_dto_unresolved" for x in g["abstentions"])
+    write(tmp_path, "app/api.py",
+          "from fastapi import FastAPI\n"
+          "app=FastAPI()\n"
+          "@app.get('/api/users', response_model=create_model())\n"
+          "def read_user(): return 1\n")
+    g = build_cross_layer(tmp_path)
+    assert not edges(g, "http_response_dto_candidate")
+    assert any(x["reason"] == "dynamic_response_dto" for x in g["abstentions"])
+
+
+def test_non_alembic_op_create_table_cannot_claim_migration(tmp_path):
+    fixture(tmp_path)
+    write(tmp_path, "migrations/versions/0001_users.py",
+          "class FakeOp:\n"
+          "    def create_table(self, name): pass\n"
+          "op=FakeOp()\n"
+          "def upgrade():\n"
+          "    op.create_table('users')\n")
+    g = build_cross_layer(tmp_path)
+    assert not edges(g, "migration_create_table_candidate")
