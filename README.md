@@ -55,7 +55,7 @@ See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibrati
 
 ## R7.05 — Cross-layer dependency intelligence (v1.12.0)
 
-**New:** a snapshot-bound, **read-only candidate graph** across literal JS/TS HTTP calls → unique FastAPI endpoints → imported Python service functions → ORM model/table declarations and published event topics → subscribed consumers. All edges cite exact source-file hashes and lines. Unsupported dynamic routes/imports/queries abstain rather than creating false certainty.
+**New:** a snapshot-bound, **read-only candidate graph** across literal JS/TS HTTP calls → unique FastAPI endpoints → imported Python service functions → ORM model/table declarations and published event topics → subscribed consumers, plus Pydantic request/response DTO declarations and Alembic table-migration references. All edges cite exact source-file hashes and lines. Unsupported dynamic routes/imports/queries abstain rather than creating false certainty.
 
 ```bash
 # Return bounded source-linked graph and inbound/outbound impact paths
