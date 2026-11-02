@@ -220,3 +220,42 @@ def test_empty_repo_has_no_fabricated_references(tmp_path):
     g = build_cross_layer(tmp_path)
     assert g["status"] == "complete"
     assert not g["nodes"] and not g["edges"]
+
+
+def test_duplicate_service_declarations_do_not_create_phantom_edges(tmp_path):
+    fixture(tmp_path)
+    write(tmp_path, "app/services.py",
+          "from app.models import User\n"
+          "def get_user(): return db.query(User)\n"
+          "def get_user(): return None\n")
+    g = build_cross_layer(tmp_path)
+    assert not edges(g, "python_function_call_candidate")
+    assert any(x["reason"] == "duplicate_module_declaration"
+               for x in g["abstentions"])
+    ids = {n["id"] for n in g["nodes"]}
+    assert all(e["source"] in ids and e["target"] in ids for e in g["edges"])
+
+
+def test_class_without_declared_orm_table_does_not_create_dangling_edges(tmp_path):
+    fixture(tmp_path)
+    write(tmp_path, "app/models.py", "class User:\n    pass\n")
+    g = build_cross_layer(tmp_path)
+    assert not edges(g, "orm_model_use_candidate")
+    ids = {n["id"] for n in g["nodes"]}
+    assert all(e["source"] in ids and e["target"] in ids for e in g["edges"])
+
+
+def test_literal_method_mismatch_does_not_connect_frontend_to_route(tmp_path):
+    fixture(tmp_path)
+    write(tmp_path, "frontend/client.ts", "fetch('/api/users', {method: 'POST'});\n")
+    g = build_cross_layer(tmp_path)
+    assert not edges(g, "literal_http_route_candidate")
+    assert any(a["reason"] == "unmatched_http_route" for a in g["abstentions"])
+
+
+def test_query_params_and_route_parameters_need_future_contract_mapping(tmp_path):
+    fixture(tmp_path)
+    write(tmp_path, "frontend/client.ts", "fetch('/api/users?id=3');\n")
+    g = build_cross_layer(tmp_path)
+    assert not edges(g, "literal_http_route_candidate")
+    assert any(a["reason"] == "dynamic_or_unsupported_http_call" for a in g["abstentions"])
