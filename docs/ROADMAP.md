@@ -128,4 +128,12 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Java project-aware JDT LS, Maven/Gradle classpaths and C# MSBuildWorkspace/solution resolution remain **separate, explicitly unmet** capabilities.
 - See [Java and C# compiler integration design](R7_COMPILED_LANGUAGES.md).
 
-**Next: R7.05** — Cross-layer dependency intelligence, linking frontend calls, backend API/DTO contracts, domain services, ORM/data changes and event consumers using source-backed evidence. R7.06 will provide ranked context retrieval and index lifecycle.
+### R7.05 — Source-linked cross-layer dependency intelligence (v1.12.0)
+
+- Built versioned, read-only `cross-layer` graph and inbound/outbound impact CLI with R7.01 SHA-256 snapshot provenance and bounded depth.
+- Supports a first real vertical slice: literal JS/TS HTTP calls, unique FastAPI decorator routes, imported Python handler/service calls, static ORM class-to-table models, event publication/subscription topics.
+- Records dynamic or ambiguous boundary abstentions rather than inventing a full consumer map; tests reject shadowed imports, duplicate functions/routes, unsourced models, unknown methods and stale snapshots.
+- Important remaining gaps: parameterized URLs, API DTO/schema binding, NestJS/Express/Spring/ASP.NET, richer ORM and broker semantics, compiler graph fusion, monorepo configuration and runtime paths. These must not be portrayed as implemented.
+- See [R7.05 cross-layer evidence and limitations](R7_CROSS_LAYER.md).
+
+**Next: R7.06** — Ranked, snapshot-bound context retrieval, semantic graph fusion where supported, incremental invalidation and explicit incomplete-index reporting.
