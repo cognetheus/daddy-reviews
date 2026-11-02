@@ -327,6 +327,24 @@ def build_cross_layer(root: Path, snapshot: dict | None = None) -> dict:
                     elif _dto_class(item, tree):
                         dto_keys.add(key)
                         node("dto", path, item.lineno, item.name)
+    # A later module-level assignment/import can replace an earlier function
+    # or model. Without runtime order and import execution, abstain.
+    for path, tree in sorted(trees.items()):
+        mutated = set()
+        for stmt in tree.body:
+            if isinstance(stmt, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                targets = stmt.targets if isinstance(stmt, ast.Assign) else [stmt.target]
+                for target in targets:
+                    mutated.update(n.id for n in ast.walk(target)
+                                   if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store))
+            elif isinstance(stmt, (ast.Import, ast.ImportFrom)):
+                mutated.update(alias.asname or alias.name.split(".")[0]
+                               for alias in stmt.names if alias.name != "*")
+        for name in mutated:
+            key = (path, name)
+            if key in functions or key in classes:
+                competing.add(key)
+                abstain(path, 1, "module_declaration_rebound")
     for key in competing:
         functions.pop(key, None)
         classes.pop(key, None)
