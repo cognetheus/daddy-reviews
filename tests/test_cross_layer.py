@@ -330,3 +330,16 @@ def test_non_alembic_op_create_table_cannot_claim_migration(tmp_path):
           "    op.create_table('users')\n")
     g = build_cross_layer(tmp_path)
     assert not edges(g, "migration_create_table_candidate")
+
+
+def test_module_level_function_reassignment_abstains(tmp_path):
+    fixture(tmp_path)
+    write(tmp_path, "app/services.py",
+          "from app.models import User\n"
+          "def get_user(): return db.query(User)\n"
+          "get_user = lambda: 'replaced'\n")
+    g = build_cross_layer(tmp_path)
+    assert not edges(g, "python_function_call_candidate")
+    assert any(x["reason"] == "module_declaration_rebound" for x in g["abstentions"])
+    ids = {n["id"] for n in g["nodes"]}
+    assert all(e["source"] in ids and e["target"] in ids for e in g["edges"])
