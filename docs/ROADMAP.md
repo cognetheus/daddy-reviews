@@ -131,7 +131,7 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 ### R7.05 — Source-linked cross-layer dependency intelligence (v1.12.0)
 
 - Built versioned, read-only `cross-layer` graph and inbound/outbound impact CLI with R7.01 SHA-256 snapshot provenance and bounded depth.
-- Supports a first real vertical slice: literal JS/TS HTTP calls, unique FastAPI decorator routes, imported Python handler/service calls, static ORM class-to-table models, event publication/subscription topics.
+- Supports a first real vertical slice: literal JS/TS HTTP calls, unique FastAPI decorator routes, imported Python handler/service calls, Pydantic request/response DTO declarations, static ORM class-to-table models, literal Alembic `create_table` migrations, and event publication/subscription topics.
 - Records dynamic or ambiguous boundary abstentions rather than inventing a full consumer map; tests reject shadowed imports, duplicate functions/routes, unsourced models, unknown methods and stale snapshots.
 - Important remaining gaps: parameterized URLs, API DTO/schema binding, NestJS/Express/Spring/ASP.NET, richer ORM and broker semantics, compiler graph fusion, monorepo configuration and runtime paths. These must not be portrayed as implemented.
 - See [R7.05 cross-layer evidence and limitations](R7_CROSS_LAYER.md).
