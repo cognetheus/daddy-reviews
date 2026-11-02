@@ -29,11 +29,12 @@ from .semantic_contracts import SemanticContractError, capture_worktree, read_sn
 from .ts_semantic import TypeScriptSemanticError, index_typescript
 from .py_semantic import PythonSemanticError, index_python
 from .compiled_semantic import CompiledSemanticError, index_compiled
+from .cross_layer import CrossLayerError, build_cross_layer, cross_layer_impact
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -77,7 +78,16 @@ def main(argv=None):
         parser.error('--apply is only supported by pr-publish')
     if args.save_state and args.command != 'rerun':
         parser.error('--save-state is only supported by rerun')
-    if args.command=='snapshot':
+    if args.command=='cross-layer':
+        try:
+            state=read_source_snapshot(Path(args.snapshot_file)) if args.snapshot_file else None
+            graph=build_cross_layer(root,state)
+            data={'graph':graph,
+                  'impact':cross_layer_impact(graph,args.changed,args.max_depth)
+                           if args.changed and graph['status'] in ('complete','partial') else None}
+        except (SemanticContractError,CrossLayerError,OSError) as exc:
+            parser.error(str(exc))
+    elif args.command=='snapshot':
         try:
             data=capture_worktree(root)
         except (SemanticContractError,OSError) as exc:
@@ -264,5 +274,7 @@ def main(argv=None):
     if args.command=='py-semantic' and data['status'] != 'complete':
         raise SystemExit(2)
     if args.command in ('java-semantic','cs-semantic') and data['status'] != 'complete':
+        raise SystemExit(2)
+    if args.command=='cross-layer' and data['graph']['status'] not in ('complete','partial'):
         raise SystemExit(2)
 if __name__=='__main__':main()
