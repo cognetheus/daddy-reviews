@@ -180,14 +180,41 @@ def _route(fn, variables):
                 decorator.func.value.id not in variables):
             continue
         method = _VERB.get(decorator.func.attr)
-        if method is None or len(decorator.args) != 1 or decorator.keywords:
+        if method is None or len(decorator.args) != 1:
             continue
+        if any(kw.arg != "response_model" for kw in decorator.keywords):
+            continue
+        response = next((kw.value for kw in decorator.keywords
+                         if kw.arg == "response_model"), None)
         url = _string(decorator.args[0])
         if (not url or len(url) > 300 or not url.startswith("/") or
                 url.startswith("//") or "{" in url or "}" in url or "?" in url):
             continue
-        candidates.append((method, url, decorator.lineno))
+        candidates.append((method, url, decorator.lineno, response))
     return candidates
+
+
+def _dto_class(class_node, tree):
+    pydantic_bases = set()
+    for stmt in tree.body:
+        if isinstance(stmt, ast.ImportFrom) and stmt.module == "pydantic":
+            pydantic_bases.update(alias.asname or alias.name for alias in stmt.names
+                                  if alias.name == "BaseModel")
+    return bool(pydantic_bases and any(
+        isinstance(base, ast.Name) and base.id in pydantic_bases
+        for base in class_node.bases
+    ))
+
+
+def _alembic_op(tree):
+    aliases = set()
+    for stmt in tree.body:
+        if isinstance(stmt, ast.ImportFrom) and stmt.module == "alembic":
+            aliases.update(a.asname or a.name for a in stmt.names if a.name == "op")
+        elif isinstance(stmt, ast.Import):
+            aliases.update(a.asname for a in stmt.names
+                           if a.name == "alembic.op" and a.asname)
+    return aliases
 
 
 def _table(class_node):
@@ -244,6 +271,7 @@ def build_cross_layer(root: Path, snapshot: dict | None = None) -> dict:
     imported = {path: _imports(path, tree, aliases) for path, tree in trees.items()}
     functions = {}
     classes = {}
+    dto_keys = set()
     competing = set()
     nodes = {}
     edges = {}
@@ -296,12 +324,16 @@ def build_cross_layer(root: Path, snapshot: dict | None = None) -> dict:
                         cls = node("model", path, item.lineno, item.name)
                         target = resource("table", table[0], path, table[1])
                         edge(cls, target, "declares_table_candidate", path, table[1])
+                    elif _dto_class(item, tree):
+                        dto_keys.add(key)
+                        node("dto", path, item.lineno, item.name)
     for key in competing:
         functions.pop(key, None)
         classes.pop(key, None)
+        dto_keys.discard(key)
     # Discard ambiguous declaration nodes and their model/table edges.
     stale_ids = {key for key, record in nodes.items()
-                 if record["kind"] in ("function", "model") and
+                 if record["kind"] in ("function", "model", "dto") and
                  (record["source"]["path"], record["name"]) in competing}
     for stale in stale_ids:
         nodes.pop(stale, None)
@@ -314,15 +346,20 @@ def build_cross_layer(root: Path, snapshot: dict | None = None) -> dict:
         return f"model:{path}:{cl.lineno}:{cl.name}"
 
     routes = defaultdict(list)
+    route_contracts = []
+    route_handlers = []
     for path, tree in sorted(trees.items()):
         variables = _route_bindings(tree)
         for (p, name), fn in sorted(functions.items()):
             if p != path:
                 continue
-            for method, url, line in _route(fn, variables):
+            for method, url, line, response in _route(fn, variables):
                 endpoint = node("http_route", path, line, f"{method} {url}")
                 routes[(method, url)].append(endpoint)
+                route_handlers.append((path, fn, endpoint))
                 edge(endpoint, function_id(path, fn), "route_handler_candidate", path, line)
+                if response is not None:
+                    route_contracts.append((path, endpoint, response, line))
     # Model lookup is grounded by explicit imports / declarations, not class spelling.
     def resolve_name(path, name, blocked):
         if name in blocked:
@@ -334,6 +371,30 @@ def build_cross_layer(root: Path, snapshot: dict | None = None) -> dict:
         if (path, name) in functions or (path, name) in classes:
             return path, name
         return None
+
+    def dto_id(path, declared):
+        cls = classes.get((path, declared))
+        if cls is None or (path, declared) not in dto_keys:
+            return None
+        return f"dto:{path}:{cls.lineno}:{cls.name}"
+
+    for path, endpoint, response, line in route_contracts:
+        if isinstance(response, ast.Name):
+            target = resolve_name(path, response.id, set())
+            dto = dto_id(*target) if target else None
+            if dto and dto in nodes:
+                edge(endpoint, dto, "http_response_dto_candidate", path, line)
+            else:
+                abstain(path, line, "response_dto_unresolved")
+        else:
+            abstain(path, line, "dynamic_response_dto")
+    for path, fn, endpoint in route_handlers:
+        for arg in fn.args.posonlyargs + fn.args.args + fn.args.kwonlyargs:
+            if isinstance(arg.annotation, ast.Name):
+                target = resolve_name(path, arg.annotation.id, set())
+                dto = dto_id(*target) if target else None
+                if dto and dto in nodes:
+                    edge(endpoint, dto, "http_request_dto_candidate", path, arg.lineno)
 
     def expression_target(path, expression, blocked):
         if isinstance(expression, ast.Name):
@@ -383,6 +444,30 @@ def build_cross_layer(root: Path, snapshot: dict | None = None) -> dict:
                     if target in classes and model_id(target[0], classes[target]) in nodes:
                         edge(here, model_id(target[0], classes[target]),
                              "orm_model_select_candidate", path, call.lineno)
+    # Alembic declaration candidates: never equate a create_table call with
+    # a deployed schema or a successful migration.
+    for path, tree in sorted(trees.items()):
+        op_names = _alembic_op(tree)
+        if not op_names:
+            continue
+        for (owner, name), fn in sorted(functions.items()):
+            if owner != path or name != "upgrade":
+                continue
+            for call in _calls(fn):
+                if (not isinstance(call.func, ast.Attribute) or
+                        call.func.attr != "create_table" or
+                        not isinstance(call.func.value, ast.Name) or
+                        call.func.value.id not in op_names):
+                    continue
+                table = _string(call.args[0]) if call.args else None
+                if table and len(table) <= 120:
+                    migration = node("migration", path, fn.lineno, "upgrade")
+                    target = resource("table", table, path, call.lineno)
+                    edge(migration, target, "migration_create_table_candidate",
+                         path, call.lineno)
+                else:
+                    abstain(path, call.lineno, "dynamic_migration_table")
+
     # Topic subscriptions produce an explicit topic -> subscribed function edge.
     for (path, _name), fn in sorted(functions.items()):
         for deco in fn.decorator_list:
@@ -438,7 +523,7 @@ def cross_layer_impact(graph: dict, changed: list[str], depth: int = 4) -> dict:
         raise CrossLayerError("Changed files must be bounded safe paths")
     nodes = {n["id"]: n for n in graph["nodes"]}
     roots = {n["id"] for n in graph["nodes"] if n["source"]["path"] in changed
-             and n["kind"] in ("function", "model", "http_route", "http_client")}
+             and n["kind"] in ("function", "model", "dto", "migration", "http_route", "http_client")}
     forward, reverse = defaultdict(list), defaultdict(list)
     for e in graph["edges"]:
         forward[e["source"]].append(e["target"])
