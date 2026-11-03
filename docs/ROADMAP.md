@@ -136,4 +136,15 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Important remaining gaps: parameterized URLs, API DTO/schema binding, NestJS/Express/Spring/ASP.NET, richer ORM and broker semantics, compiler graph fusion, monorepo configuration and runtime paths. These must not be portrayed as implemented.
 - See [R7.05 cross-layer evidence and limitations](R7_CROSS_LAYER.md).
 
-**Next: R7.06** — Ranked, snapshot-bound context retrieval, semantic graph fusion where supported, incremental invalidation and explicit incomplete-index reporting.
+### R7.06 — Ranked source context, semantic overlay and graph lifecycle (v1.13.0)
+
+- Delivered `context` CLI returning deterministic ranked source excerpts with line-numbered, manifest-hash-bound evidence, including test importers, inbound callers, outbound dependencies, and bounded graph paths.
+- Fuses existing import and cross-layer graph edges with optional **one-symbol** adapters for Python (AST candidates), TS/JS (TypeScript compiler), Java (javac) and C# (Roslyn). Source trust is always `untrusted_repository_source`; semantic completeness is separately reported.
+- Added opt-in cache for graph metadata and source manifest only, with exact SHA-256 snapshot hits, schema and source-span checks, restrictive atomic writes, explicit changed-path/known-dependent invalidation, and **full graph rebuilds on misses**. This is not incremental compiler parsing or an authenticated cache.
+- Added 3-version Python CI gate with real all-language overlay tests, injection and tampered-cache cases, stale source, truncated context, symlink defense and deterministic ranking.
+- Nonzero CLI exit on incomplete requested semantic coverage, truncated context or stale snapshots. Users can still inspect partial JSON evidence without treating it as complete.
+- See [R7.06 ranked context and cache contracts](R7_CONTEXT_RETRIEVAL.md).
+
+**R7 complete within its explicitly scoped v1 vertical slices (R7.01–R7.06).** Remaining R7 architecture limitations: persistent whole-repository language-server databases, complete monorepo/JDT LS/MSBuild workspace resolution, generalized cross-language bindings, runtime-verifiable call chains and automated model-tool access. These are deliberate future R8+ capabilities, not implied by the release.
+
+**Next: R8.01** — Typed read-only investigation tools (`read_file`, `find_symbol`, `find_references`, `query_dependencies`, `inspect_contract`, `find_tests`, `inspect_history`) with snapshot consistency, tool permissions and bounded evidence.
