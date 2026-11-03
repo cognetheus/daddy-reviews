@@ -7,7 +7,7 @@ import re
 from .core import Finding, Severity, Verification
 
 EXCLUDE = {'.git','.venv','venv','node_modules','dist','build','coverage','__pycache__','.next','obj','bin'}
-SOURCES = {'.py', '.ts', '.tsx', '.js', '.jsx', '.cs', '.java'}
+SOURCES = {'.py', '.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs', '.cs', '.java'}
 @dataclass(frozen=True)
 class Symbol:
     name: str
