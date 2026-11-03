@@ -10,3 +10,4 @@ dist/
 node_modules/
 obj/
 bin/
+.daddy-context-cache*.json
