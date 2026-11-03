@@ -57,7 +57,7 @@ def _check_module_hashes(module, manifest):
     return all(digests.get(n.get("path")) == n.get("sha256") for n in module["nodes"])
 
 
-def _fusion_edges(cross, module, semantic):
+def _fusion_edges(cross, module, semantic, manifest):
     """Normalize source-linked edges; never merge distinct certainty levels."""
     c_nodes = {node["id"]: node for node in cross.get("nodes", [])}
     combined = []
@@ -71,11 +71,19 @@ def _fusion_edges(cross, module, semantic):
             "evidence": edge["evidence"], "origin": "cross_layer",
             "certainty": "candidate",
         })
+    inventory = {f["path"]: f for f in manifest["files"]}
     for edge in module.get("edges", []):
+        record = inventory.get(edge["source"])
+        line = edge["line"]
+        if (record is None or type(line) is not int or
+                not 1 <= line <= record["line_count"]):
+            raise ContextRetrievalError("Import graph edge is not grounded in the source manifest")
+        evidence = SourceSpan(manifest["snapshot_id"], edge["source"],
+                              record["sha256"], line, line, "lexical", "candidate")
         combined.append({
             "source": edge["source"], "target": edge["target"],
             "relationship": edge["kind"],
-            "evidence": {"path": edge["source"], "line": edge["line"]},
+            "evidence": asdict(evidence),
             "origin": "module_import", "certainty": "candidate",
         })
     if semantic and semantic.get("status") in ("complete", "partial"):
@@ -261,7 +269,7 @@ def retrieve_context(root: Path, changed: list[str], symbol: str | None = None,
             else:
                 cache_status = "bypassed_incomplete_graph"
     semantic = _semantic_lookup(root, manifest, changed, symbol)
-    full_edges = _fusion_edges(cross, module, semantic)
+    full_edges = _fusion_edges(cross, module, semantic, manifest)
     scores, reasons, anchors = _rank(changed, full_edges, semantic)
     # Keep all ranked paths tied to the same source manifest; module graph can
     # only rank indexed source entries.
@@ -303,6 +311,8 @@ def retrieve_context(root: Path, changed: list[str], symbol: str | None = None,
         warnings += [f"semantic: {w}" for w in semantic.get("warnings", [])]
     if len(candidates) > max_items:
         warnings.append("Source context ranking exceeded output budget")
+    if not ranked:
+        warnings.append("No source excerpt could be grounded for the requested changed paths")
     if clipped:
         warnings.append("One or more source excerpts exceeded the safe output budget")
     if len(full_edges) > MAX_FUSED_EDGES:
