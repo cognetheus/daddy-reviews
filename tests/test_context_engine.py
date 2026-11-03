@@ -62,6 +62,10 @@ def test_ranked_source_context_walks_real_http_service_orm_event_and_test(tmp_pa
     assert all(x["location"]["source_sha256"] for x in result["ranked_context"])
     assert any(e["origin"] == "cross_layer" for e in result["graph_edges"])
     assert any(e["origin"] == "module_import" for e in result["graph_edges"])
+    assert all(e["evidence"]["snapshot_id"] == result["snapshot_id"]
+               and len(e["evidence"]["source_sha256"]) == 64
+               and e["evidence"]["start_line"] >= 1
+               for e in result["graph_edges"])
     assert result["context_bundle"]["verified_runtime_calls"] is False
 
 
