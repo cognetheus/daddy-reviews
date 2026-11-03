@@ -289,3 +289,24 @@ def test_es_module_source_variants_are_manifest_bound(tmp_path):
     result = retrieve_context(tmp_path, ["module.mts"])
     assert result["status"] == "complete"
     assert result["ranked_context"][0]["location"]["path"] == "module.mts"
+
+
+def test_unicode_line_separators_do_not_fabricate_manifest_line_numbers(tmp_path):
+    # Unicode U+2028 is not the LF byte counted by R7.01 source manifests.
+    write(tmp_path, "src/sample.py", "# note\u2028still same physical line\nx = 1\n")
+    result = retrieve_context(tmp_path, ["src/sample.py"], context_radius=2)
+    assert result["status"] == "complete", result["warnings"]
+    location = result["ranked_context"][0]["location"]
+    assert location["start_line"] == 1
+    assert location["end_line"] == 2
+    assert result["context_bundle"]["excerpts"][0]["location"]["end_line"] == 2
+
+
+def test_large_single_line_excerpt_abstains_on_complete_context(tmp_path):
+    write(tmp_path, "src/minified.py", "# " + "x" * 12000 + "\n")
+    result = retrieve_context(tmp_path, ["src/minified.py"])
+    assert result["status"] == "partial"
+    assert result["coverage"]["excerpt_truncated"] is True
+    assert result["ranked_context"][0]["excerpt_truncated"] is True
+    assert result["ranked_context"][0]["excerpt"].endswith("[excerpt truncated]")
+    assert len(result["ranked_context"][0]["excerpt"].encode()) < 6000
