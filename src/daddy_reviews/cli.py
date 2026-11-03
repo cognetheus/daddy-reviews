@@ -79,6 +79,8 @@ def main(argv=None):
         parser.error(f'Not a directory: {root}')
     if args.cache_file and args.command not in ('graph','capabilities'):
         parser.error('--cache-file is only supported by graph and capabilities')
+    if args.context_cache and args.command != 'context':
+        parser.error('--context-cache is only supported by context')
     if args.apply and args.command != 'pr-publish':
         parser.error('--apply is only supported by pr-publish')
     if args.save_state and args.command != 'rerun':
