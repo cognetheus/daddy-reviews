@@ -174,8 +174,12 @@ def _excerpt(root, manifest, path, line, before_after):
         decoded = raw.decode("utf-8")
     except (OSError, UnicodeError, ValueError) as exc:
         raise ContextRetrievalError("Source context is stale or not UTF-8") from exc
-    lines = decoded.splitlines()
-    if not lines:
+    # R7.01 counts byte '\\n' separators; splitlines() would also count
+    # U+2028 and other Unicode separators and forge source line positions.
+    lines = decoded.split("\n")
+    if decoded.endswith("\n"):
+        lines.pop()
+    if not lines or (len(lines) == 1 and not lines[0]):
         return None
     line = max(1, min(line, len(lines)))
     start = max(1, line - before_after)
@@ -267,13 +271,17 @@ def retrieve_context(root: Path, changed: list[str], symbol: str | None = None,
     )
     ranked = []
     excerpts = []
+    clipped = False
     for path in candidates[:max_items]:
         anchor = anchors.get(path, (1, 0))[0]
         item = _excerpt(root, manifest, path, anchor, context_radius)
         if item is None:
             continue
         excerpts.append(item)
+        was_clipped = item.text.endswith("[excerpt truncated]")
+        clipped = clipped or was_clipped
         ranked.append({"path": path, "score": scores[path],
+                       "excerpt_truncated": was_clipped,
                        "signals": sorted(reasons[path]),
                        "location": asdict(item.location),
                        "excerpt": item.text,
@@ -295,6 +303,8 @@ def retrieve_context(root: Path, changed: list[str], symbol: str | None = None,
         warnings += [f"semantic: {w}" for w in semantic.get("warnings", [])]
     if len(candidates) > max_items:
         warnings.append("Source context ranking exceeded output budget")
+    if clipped:
+        warnings.append("One or more source excerpts exceeded the safe output budget")
     if len(full_edges) > MAX_FUSED_EDGES:
         warnings.append("Fused edge display truncated; graph-based ranking used full bounded edges")
     semantic_status = semantic["status"] if semantic else "not_requested"
@@ -318,6 +328,7 @@ def retrieve_context(root: Path, changed: list[str], symbol: str | None = None,
             "rankable_paths": len(candidates),
             "returned_contexts": len(ranked),
             "ranking_truncated": len(candidates) > max_items,
+            "excerpt_truncated": clipped,
             "verified_runtime_calls": False,
             "note": "Complete means this bounded static scan succeeded, not complete program understanding.",
         },
