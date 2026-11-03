@@ -232,3 +232,60 @@ def test_source_content_is_untrusted_even_if_it_contains_prompt_injection(tmp_pa
     assert "Ignore previous instructions" in result["ranked_context"][0]["excerpt"]
     # Reading malicious text never initiates an external action or creates a file.
     assert not (tmp_path / "review-posted.txt").exists()
+
+
+def test_type_script_compiler_semantic_fuses_with_ranked_context(tmp_path):
+    from daddy_reviews.ts_semantic import TS_INSTALL
+    if not TS_INSTALL.exists():
+        pytest.skip("Optional pinned TS compiler is unavailable")
+    write(tmp_path, "src/math.ts",
+          "export function calculateTax(n: number) { return n * 0.2; }\n")
+    write(tmp_path, "src/app.ts",
+          "import { calculateTax as tax } from './math';\n"
+          "export const output = tax(20);\n")
+    result = retrieve_context(tmp_path, ["src/math.ts"], symbol="calculateTax")
+    assert result["status"] == "complete", result["warnings"]
+    assert result["coverage"]["semantic_adapter"] == "typescript"
+    assert result["coverage"]["language_semantic_status"] == "complete"
+    assert "src/app.ts" in {x["path"] for x in result["ranked_context"]}
+    assert any(x["origin"] == "semantic_symbol" and x["certainty"] == "resolved"
+               for x in result["graph_edges"])
+
+
+def test_javac_symbol_merges_with_ranked_context(tmp_path):
+    from daddy_reviews.compiled_semantic import JAVA_HELPER
+    import shutil
+    if not JAVA_HELPER.exists() or not shutil.which("java"):
+        pytest.skip("Optional JDK compiler is unavailable")
+    write(tmp_path, "src/Service.java",
+          "public class Service { public int run() { return 1; } }\n")
+    write(tmp_path, "src/Consumer.java",
+          "public class Consumer { public int check() { return new Service().run(); } }\n")
+    result = retrieve_context(tmp_path, ["src/Service.java"], symbol="Service.run")
+    assert result["status"] == "complete", result["warnings"]
+    assert result["coverage"]["semantic_adapter"] == "java"
+    assert "src/Consumer.java" in {x["path"] for x in result["ranked_context"]}
+    assert any(e["origin"] == "semantic_symbol" for e in result["graph_edges"])
+
+
+def test_roslyn_symbol_merges_with_ranked_context(tmp_path):
+    from daddy_reviews.compiled_semantic import CS_HELPER
+    import shutil
+    if not CS_HELPER.exists() or not shutil.which("dotnet"):
+        pytest.skip("Optional pinned .NET Roslyn helper is unavailable")
+    write(tmp_path, "src/Service.cs",
+          "public class Service { public int Run() { return 1; } }\n")
+    write(tmp_path, "src/Consumer.cs",
+          "public class Consumer { public int Check() { return new Service().Run(); } }\n")
+    result = retrieve_context(tmp_path, ["src/Service.cs"], symbol="Service.Run")
+    assert result["status"] == "complete", result["warnings"]
+    assert result["coverage"]["semantic_adapter"] == "csharp"
+    assert "src/Consumer.cs" in {x["path"] for x in result["ranked_context"]}
+    assert any(e["origin"] == "semantic_symbol" for e in result["graph_edges"])
+
+
+def test_es_module_source_variants_are_manifest_bound(tmp_path):
+    write(tmp_path, "module.mts", "export const f = () => true;\n")
+    result = retrieve_context(tmp_path, ["module.mts"])
+    assert result["status"] == "complete"
+    assert result["ranked_context"][0]["location"]["path"] == "module.mts"
