@@ -53,6 +53,26 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
+## R7.06 — Ranked context retrieval & index lifecycle (v1.13.0)
+
+**New:** an opt-in reviewer-facing `context` command that ranks relevant source excerpts using existing import and cross-layer evidence, optionally adds **real Python AST, TypeScript, javac or Roslyn symbol references**, and verifies every returned location against the current R7.01 source manifest.
+
+```bash
+# Read-only by default: ranked callers, service/ORM/event consumers and relevant tests
+daddy-reviews context --root . --changed app/services.py
+
+# Optional exact symbol resolution (language adapter chosen by file extension)
+daddy-reviews context --root . --changed app/services.py --symbol get_user
+
+# Opt-in graph metadata cache; snippets are never written to it
+daddy-reviews context --root . --changed app/services.py \
+  --context-cache /tmp/daddy-context-cache.json
+```
+
+Cache hits only reuse graphs for identical source hashes; changes conservatively invalidate known affected paths and rebuild the **whole graph**. Ranked excerpts remain untrusted source text, not instructions or confirmed runtime call paths. The `ai-review` command does not automatically consume this context yet; that belongs to R8 tool integration.
+
+See [R7.06 design and acceptance criteria](docs/R7_CONTEXT_RETRIEVAL.md).
+
 ## R7.05 — Cross-layer dependency intelligence (v1.12.0)
 
 **New:** a snapshot-bound, **read-only candidate graph** across literal JS/TS HTTP calls → unique FastAPI endpoints → imported Python service functions → ORM model/table declarations and published event topics → subscribed consumers, plus Pydantic request/response DTO declarations and Alembic table-migration references. All edges cite exact source-file hashes and lines. Unsupported dynamic routes/imports/queries abstain rather than creating false certainty.
