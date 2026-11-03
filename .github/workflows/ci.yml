@@ -68,6 +68,21 @@ jobs:
       - run: pytest -q tests/test_py_semantic.py
       - name: Require cross-layer evidence and ambiguity regressions
         run: pytest -q tests/test_cross_layer.py
+      - name: Require ranked context, cache and all-language semantic integration tests
+        run: pytest -q tests/test_context_engine.py
+      - name: Smoke-test source-backed context CLI on repository
+        run: |
+          python - <<'PY'
+          import json, subprocess, sys
+          cmd = [sys.executable, "-m", "daddy_reviews.cli", "context",
+                 "--root", ".", "--changed", "src/daddy_reviews/context_engine.py"]
+          report = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+          data = json.loads(report.stdout)
+          assert data["format"] == "daddy-reviews-ranked-context-v1"
+          assert data["context_bundle"] is not None
+          assert data["coverage"]["returned_contexts"] > 0
+          assert report.returncode == (0 if data["status"] == "complete" else 2)
+          PY
       - name: Verify cross-layer CLI on repository sources
         run: python -m daddy_reviews.cli cross-layer --root . --changed src/daddy_reviews/cross_layer.py --max-depth 4 > /dev/null
       - run: python -m daddy_reviews.cli py-semantic --root . --changed src/daddy_reviews/py_semantic.py --symbol index_python > /dev/null
