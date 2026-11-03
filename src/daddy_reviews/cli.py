@@ -30,11 +30,13 @@ from .ts_semantic import TypeScriptSemanticError, index_typescript
 from .py_semantic import PythonSemanticError, index_python
 from .compiled_semantic import CompiledSemanticError, index_compiled
 from .cross_layer import CrossLayerError, build_cross_layer, cross_layer_impact
+from .context_engine import ContextRetrievalError, retrieve_context
+from .context_cache import ContextCacheError
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -68,6 +70,9 @@ def main(argv=None):
     parser.add_argument('--before-graph',help='Previously exported graph JSON snapshot')
     parser.add_argument('--after-graph',help='Later exported graph JSON snapshot')
     parser.add_argument('--cache-file',help='Opt-in persistent .json graph cache for graph/capabilities; writes this file')
+    parser.add_argument('--context-cache',help='Opt-in local JSON graph metadata cache for context; never stores source excerpts')
+    parser.add_argument('--context-limit',type=int,default=12,help='Maximum returned ranked source snippets (1..24)')
+    parser.add_argument('--context-radius',type=int,default=3,help='Lines before and after source anchor (0..8)')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -78,7 +83,17 @@ def main(argv=None):
         parser.error('--apply is only supported by pr-publish')
     if args.save_state and args.command != 'rerun':
         parser.error('--save-state is only supported by rerun')
-    if args.command=='cross-layer':
+    if args.command=='context':
+        if not args.changed:
+            parser.error('context needs at least one --changed PATH; --symbol requires exactly one')
+        try:
+            state=read_source_snapshot(Path(args.snapshot_file)) if args.snapshot_file else None
+            data=retrieve_context(root,args.changed,symbol=args.symbol,snapshot=state,
+                                  cache_file=Path(args.context_cache) if args.context_cache else None,
+                                  max_items=args.context_limit,context_radius=args.context_radius)
+        except (SemanticContractError,ContextRetrievalError,ContextCacheError,OSError) as exc:
+            parser.error(str(exc))
+    elif args.command=='cross-layer':
         try:
             state=read_source_snapshot(Path(args.snapshot_file)) if args.snapshot_file else None
             graph=build_cross_layer(root,state)
@@ -276,5 +291,7 @@ def main(argv=None):
     if args.command in ('java-semantic','cs-semantic') and data['status'] != 'complete':
         raise SystemExit(2)
     if args.command=='cross-layer' and data['graph']['status'] not in ('complete','partial'):
+        raise SystemExit(2)
+    if args.command=='context' and data['status'] != 'complete':
         raise SystemExit(2)
 if __name__=='__main__':main()
