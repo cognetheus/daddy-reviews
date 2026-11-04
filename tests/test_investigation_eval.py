@@ -165,6 +165,7 @@ def test_regression_comparison_flags_new_false_positive():
     after = evaluate_replay(candidate_dataset)
     assert before["fixture_set_sha256"] == after["fixture_set_sha256"]
     assert after["cases"][0]["status"] == "incomplete"
+    assert after["status"] == "contract_failed"
     result = compare_replay(before, after)
     assert result["status"] == "regression"
     assert "new_incomplete_cases" in result["regression_flags"]
@@ -206,7 +207,7 @@ def test_unrecorded_model_call_is_fail_closed(tmp_path):
         dataset["cases"][0]["reviewers"][0]["turns"][0]
     ]
     report = evaluate_replay(dataset)
-    assert report["status"] == "evaluated"
+    assert report["status"] == "contract_failed"
     assert report["cases"][0]["status"] == "incomplete"
     assert report["cases"][0]["fn"] == 1
 
@@ -216,3 +217,49 @@ def test_replay_source_is_data_and_cannot_trigger_shell_code():
     assert result["status"] == "evaluated"
     assert result["cases"][0]["observed_count"] == 0
     assert result["cases"][0]["status"] == "complete"
+
+
+def test_cli_replay_eval_and_comparison_smoke(capsys, tmp_path):
+    from daddy_reviews.cli import main
+
+    main(["investigation-replay", "--replay-dataset", str(SYNTHETIC)])
+    report = json.loads(capsys.readouterr().out)
+    assert report["status"] == "evaluated"
+    assert report["case_count"] == 10
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text(json.dumps(report))
+    main(["investigation-compare", "--baseline-replay", str(baseline),
+          "--candidate-replay", str(baseline)])
+    comparison = json.loads(capsys.readouterr().out)
+    assert comparison["status"] == "insufficient_evidence"
+    assert comparison["promotion_eligible"] is False
+
+
+def test_cli_replay_regression_exits_nonzero_but_prints_json(tmp_path, capsys):
+    from daddy_reviews.cli import main
+
+    before = evaluate_replay(small("synthetic-clean-skip-tools"))
+    candidate = small("synthetic-clean-skip-tools")
+    candidate["cases"][0]["reviewers"][0]["turns"][0]["findings"] = [{
+        "rule": "UNVERIFIED", "path": "src/config.py", "line": 1,
+        "claim": "Speculation", "evidence": "No real tool evidence",
+        "severity": "low", "citations": ["E1"],
+    }]
+    after = evaluate_replay(candidate)
+    first, second = tmp_path / "before.json", tmp_path / "after.json"
+    first.write_text(json.dumps(before))
+    second.write_text(json.dumps(after))
+    with pytest.raises(SystemExit) as e:
+        main(["investigation-compare", "--baseline-replay", str(first),
+              "--candidate-replay", str(second)])
+    assert e.value.code == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "regression"
+
+
+def test_cli_reports_missing_or_invalid_replay_file_as_usage_error(capsys, tmp_path):
+    from daddy_reviews.cli import main
+
+    with pytest.raises(SystemExit) as exc:
+        main(["investigation-replay", "--replay-dataset", str(tmp_path / "missing.json")])
+    assert exc.value.code == 2
