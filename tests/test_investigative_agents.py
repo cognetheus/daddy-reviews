@@ -380,3 +380,48 @@ def test_reviewer_number_cap_is_enforced_in_python_api(tmp_path):
     )
     assert report["status"] == "complete"
     assert len(report["reviewer_runs"]) == 1
+
+
+def test_forged_tool_source_hash_is_not_registered_as_host_evidence(tmp_path, monkeypatch):
+    import daddy_reviews.investigative_agents as harness
+    seed(tmp_path)
+    original = harness.InvestigationSession.execute
+    def corrupted(self, req):
+        response = original(self, req)
+        if response["status"] == "complete" and response["evidence"]:
+            response["evidence"][0]["source_sha256"] = "0" * 64
+        return response
+    monkeypatch.setattr(harness.InvestigationSession, "execute", corrupted)
+    def provider(reviewer, messages):
+        if len(messages) == 1:
+            return read_call()
+        return {"kind":"final","findings":[finding()]}
+    report = investigate_with_specialists(
+        tmp_path, PATCH, provider, allowed_tools={"read_file"},
+        reviewers=("security",),
+    )
+    assert report["status"] == "incomplete"
+    assert report["model_findings"] == []
+    assert report["reviewer_runs"][0]["reason"] == "AgentRuntimeError"
+
+
+def test_forged_tool_snapshot_id_and_line_range_are_rejected(tmp_path, monkeypatch):
+    import daddy_reviews.investigative_agents as harness
+    seed(tmp_path)
+    original = harness.InvestigationSession.execute
+    for invalid in ("snapshot_id", "end_line"):
+        def corrupted(self, req):
+            response = original(self, req)
+            if response["status"] == "complete" and response["evidence"]:
+                response["evidence"][0][invalid] = (
+                    "bad_snapshot" if invalid == "snapshot_id" else 999999
+                )
+            return response
+        monkeypatch.setattr(harness.InvestigationSession, "execute", corrupted)
+        report = investigate_with_specialists(
+            tmp_path, PATCH,
+            lambda r,m: read_call(),
+            allowed_tools={"read_file"},reviewers=("security",),
+        )
+        assert report["status"] == "incomplete"
+        assert report["model_findings"] == []
