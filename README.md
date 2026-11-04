@@ -67,7 +67,7 @@ daddy-reviews investigation-compare \
   --baseline-replay /tmp/replay.json --candidate-replay /tmp/replay.json
 ```
 
-The included ten cases are deliberately **synthetic** and cannot establish actual model defect-detection quality or authorize rollout. Only an independently adjudicated, adequately sized labeled corpus can support empirical model evaluation; even then, publication and merge gates require separate human approval.
+The included ten cases are deliberately **synthetic** and cannot establish actual model defect-detection quality or authorize rollout. Live `ai-investigate` can optionally add `--record-model-turns` to return the model's JSON actions for subsequent replay (never raw tool responses, and disabled by default). Only an independently adjudicated, adequately sized labeled corpus can support empirical model evaluation; even then, publication and merge gates require separate human approval.
 
 See [R8.03 replay, scoring, regression and limits](docs/R8_INVESTIGATION_REPLAY.md).
 
