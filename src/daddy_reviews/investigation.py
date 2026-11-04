@@ -266,6 +266,8 @@ def _tests(root, snapshot, req):
             else:
                 queue.append((p, depth + 1))
     warnings = list(ctx.get("warnings", []))
+    if len(tests) >= req.limit:
+        warnings.append("Test candidate result limit reached; further tests may exist")
     if ctx["coverage"]["total_candidate_edges"] > len(ctx["graph_edges"]):
         warnings.append("Graph-edge display budget limits test discovery")
     return _reply(req.tool, "complete" if not warnings else "partial",
@@ -377,6 +379,9 @@ def _history(root, snapshot, req):
     if history is None:
         return _reply(req.tool, "unavailable", snapshot,
                       warnings=["Git history command failed or exceeded budget"])
+    if run(["rev-parse", "HEAD"]) != head:
+        return _reply(req.tool, "partial", snapshot,
+                      warnings=["Git HEAD changed while reading history; results withheld"])
     records = []
     for line in history.splitlines():
         parts = line.split("\t", 2)
@@ -448,12 +453,23 @@ class InvestigationSession:
         if not verify_worktree(self.root, self.snapshot)["verified"]:
             return _reply(request.tool, "stale", self.snapshot,
                           warnings=["Worktree changed during tool execution; result withheld"])
-        length = len(json.dumps(result, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        result["budget"] = {"calls_used": self.calls, "calls_limit": self.max_calls,
+                            "response_bytes_used": 0,
+                            "response_bytes_limit": self.max_bytes}
+        # Account for the budget metadata itself (including decimal digit width)
+        # rather than undercounting every response by its bookkeeping fields.
+        length = 0
+        for _ in range(6):
+            length = len(json.dumps(result, separators=(",", ":"),
+                                    ensure_ascii=False).encode("utf-8"))
+            total = self.bytes_returned + length
+            if result["budget"]["response_bytes_used"] == total:
+                break
+            result["budget"]["response_bytes_used"] = total
+        length = len(json.dumps(result, separators=(",", ":"),
+                                ensure_ascii=False).encode("utf-8"))
         if length > MAX_PER_CALL or self.bytes_returned + length > self.max_bytes:
             return _reply(request.tool, "budget_exceeded", self.snapshot,
                           warnings=["Investigation response budget exceeded; no truncated evidence returned"])
         self.bytes_returned += length
-        result["budget"] = {"calls_used": self.calls, "calls_limit": self.max_calls,
-                            "response_bytes_used": self.bytes_returned,
-                            "response_bytes_limit": self.max_bytes}
         return result
