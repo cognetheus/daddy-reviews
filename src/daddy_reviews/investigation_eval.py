@@ -73,7 +73,9 @@ def _finding_valid(value):
 
 
 def _checked_case(case, dataset_kind):
-    if not isinstance(case, dict) or not CASE_ID.fullmatch(str(case.get("id", ""))):
+    if (not isinstance(case, dict) or
+            not isinstance(case.get("id"), str) or
+            not CASE_ID.fullmatch(case["id"])):
         raise ReplayError("Case IDs must be unique, printable and bounded")
     if case.get("tier") not in ("trivial", "lite", "full"):
         raise ReplayError("Case needs a review tier")
@@ -147,8 +149,10 @@ def _checked_case(case, dataset_kind):
             elif turn.get("kind") not in {"tool", "final"}:
                 raise ReplayError("Script turn must be tool, final or transport_error")
     allowed_tools = case.get("allowed_tools")
-    if (not isinstance(allowed_tools, list) or len(allowed_tools) != len(set(allowed_tools))
-            or any(t not in TOOLS for t in allowed_tools)):
+    if (not isinstance(allowed_tools, list) or
+            any(not isinstance(t, str) for t in allowed_tools) or
+            len(allowed_tools) != len(set(allowed_tools)) or
+            any(t not in TOOLS for t in allowed_tools)):
         raise ReplayError("Tool grant list must be explicit and unique")
     if case.get("expected_status") not in {"complete", "incomplete"}:
         raise ReplayError("Case needs expected complete/incomplete outcome")
@@ -421,7 +425,7 @@ def compare_replay(baseline, candidate, *, max_precision_drop=0.02,
     """Detect paired-case regressions; small sets explicitly abstain from promotion."""
     for label, report in (("baseline", baseline), ("candidate", candidate)):
         if (not isinstance(report, dict) or report.get("format") != RESULT_FORMAT
-                or report.get("status") != "evaluated"
+                or report.get("status") not in {"evaluated", "contract_failed"}
                 or report.get("dataset_kind") not in ("synthetic", "human_labeled")
                 or not isinstance(report.get("cases"), list)
                 or not HEX.fullmatch(str(report.get("fixture_set_sha256", "")))):
@@ -462,6 +466,8 @@ def compare_replay(baseline, candidate, *, max_precision_drop=0.02,
     )
     if newly_broken:
         regressions.append("new_incomplete_cases")
+    if candidate["status"] == "contract_failed" and baseline["status"] == "evaluated":
+        regressions.append("unexpected_replay_contract_failure")
     enough = len(candidate["cases"]) >= min_cases
     if regressions:
         status = "regression"
@@ -484,3 +490,16 @@ def compare_replay(baseline, candidate, *, max_precision_drop=0.02,
             "Relative rates are undefined (null) when the denominator is zero.",
         ],
     }
+
+
+def read_replay_report(path: Path):
+    """Read a bounded, non-symlinked evaluation result for paired comparison."""
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_DATASET_BYTES:
+        raise ReplayError("Replay report missing, symlinked or oversized")
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise ReplayError("Invalid replay report JSON") from exc
+    if not isinstance(report, dict) or report.get("format") != RESULT_FORMAT:
+        raise ReplayError("Expected a versioned replay evaluation report")
+    return report
