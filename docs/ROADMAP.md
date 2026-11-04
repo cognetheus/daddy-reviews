@@ -169,4 +169,13 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - CI regression tests cover actual local mock-Ollama multi-turn CLI traffic, permission denial, forged citations/locations/source hashes, independent reviewers, provider timeouts, unsafe action payloads, stale source, source mismatch and finite budgets.
 - Docs and caveats: [R8.02 specialist investigation harness](R8_SPECIALIST_INVESTIGATION.md). No real-model accuracy benchmark is claimed by mock transport tests.
 
-**Next: R8.03** — Human-labeled specialist investigation benchmarks, deterministic tool-transcript replay, false-positive and missed-defect calibration, and performance/call-budget governance. Automated PR publication and merge blocking remain separate explicit-human gates.
+### R8.03 — Deterministic investigation replay and calibration (v1.16.0)
+
+- Delivered offline `investigation-replay` over the **actual** R8.02 specialist orchestration and R8.01 source tools. Only model decisions are scripted; source snippets, permissions and evidence IDs are recalculated on isolated fixtures.
+- Added a versioned fixture format separating `synthetic` from self-declared `human_labeled` data. The bundled ten scenarios cover true-positive, false-positive, false-negative, clean, permission-denied, forged citations, missing tools, provider timeout, injected source text and duplicate-reviewer findings.
+- Scoring measures exact path/line/rule TP/FP/FN, precision/recall/F1, severity agreement, clean-case false-positive rate, incomplete coverage, model turns, tool calls and actual local replay latency. Missing inference tokens and cost remain unavailable (not zero).
+- Added deterministic SHA-256 transcript digests excluding volatile local timings, strict replay-step completeness checks, and `investigation-compare` with matching-corpus verification, recalculated score integrity, new-incomplete-case detection and configured regression thresholds.
+- **Promotion abstains** on synthetic or undersized corpora. Actual human-adjudicated repository cases and live-model outcome evaluation remain necessary before claiming real-world reviewer quality.
+- Regression suite and CLI smoke cover the above in the Python 3.10/3.12/3.13 CI matrix. Details: [R8.03 replay and evaluation](R8_INVESTIGATION_REPLAY.md).
+
+**Next: R8.04** — Evidence-driven specialist self-check and repair/refutation workflows, explicit human escalation and bounded verification artifacts. No model-produced evidence alone may publish comments or block merges.
