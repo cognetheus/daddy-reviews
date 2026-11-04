@@ -237,7 +237,7 @@ def _final_findings(turn, reviewer, allowed, registry):
 
 
 def _one_specialist(reviewer, *, root, manifest, allowed, patch, packet,
-                    provider, granted, max_rounds, max_tools):
+                    provider, granted, max_rounds, max_tools, record_turns=False):
     started = perf_counter()
     session = InvestigationSession(root, allowed_tools=granted,
                                    snapshot=manifest, max_calls=max_tools,
@@ -254,6 +254,7 @@ def _one_specialist(reviewer, *, root, manifest, allowed, patch, packet,
     }
     messages = [{"role": "user", "content": json.dumps(summary, ensure_ascii=False)}]
     audit = []
+    recorded = []
     registry = {}
     usage = {"input_tokens": 0, "output_tokens": 0, "complete": True}
     findings = []
@@ -283,6 +284,10 @@ def _one_specialist(reviewer, *, root, manifest, allowed, patch, packet,
                 usage["complete"] = False
             if len(json.dumps(turn, ensure_ascii=False).encode("utf-8")) > MAX_RESPONSE_BYTES:
                 raise AgentRuntimeError("Specialist returned oversized JSON")
+            if record_turns:
+                # Copy model JSON actions only; never persist tool payloads or
+                # inference envelope usage. All contents remain untrusted data.
+                recorded.append(json.loads(json.dumps(turn, ensure_ascii=False)))
             kind = turn.get("kind")
             if kind == "final":
                 findings = _final_findings(turn, reviewer, allowed, registry)
@@ -327,6 +332,8 @@ def _one_specialist(reviewer, *, root, manifest, allowed, patch, packet,
             # A provider/network timeout or malformed turn is a failed *specialist*,
             # never a fatal exception that discards other reviewers' outcomes.
             failure = type(exc).__name__
+            if record_turns and failure in {"TimeoutError", "ConnectionError", "OSError"}:
+                recorded.append({"kind": "transport_error", "error": failure})
             audit.append({"round": round_number, "action": "error",
                           "status": "failed", "reason": failure})
             break
@@ -334,7 +341,7 @@ def _one_specialist(reviewer, *, root, manifest, allowed, patch, packet,
         failure = "round_budget_exhausted"
     if not verify_worktree(root, manifest)["verified"]:
         failure, findings = "stale_snapshot", []
-    return {
+    result = {
         "reviewer": reviewer, "status": "completed" if failure is None else "failed",
         "reason": failure, "round_count": len(audit), "tool_calls": tool_calls,
         "latency_ms": round((perf_counter() - started) * 1000, 2),
@@ -342,6 +349,9 @@ def _one_specialist(reviewer, *, root, manifest, allowed, patch, packet,
         "findings": findings if failure is None else [],
         "cited_evidence_count": len(registry),
     }
+    if record_turns:
+        result["recorded_model_turns"] = recorded
+    return result
 
 
 def investigate_with_specialists(
@@ -349,6 +359,7 @@ def investigate_with_specialists(
     *, allowed_tools=(), task: str = "Review pull request",
     reviewers=None, max_reviewers: int = 3, max_rounds: int = 4,
     max_tools_per_reviewer: int = 3, max_workers: int = 2,
+    record_model_turns: bool = False,
 ) -> dict:
     """Run actual specialist/tool turns; opt-in and never publish or block a PR.
 
@@ -369,6 +380,8 @@ def investigate_with_specialists(
         raise AgentRuntimeError("Invalid investigation round, tool or parallel budgets")
     if not isinstance(task, str) or len(task) > 300:
         raise AgentRuntimeError("Task description exceeds safe budget")
+    if type(record_model_turns) is not bool:
+        raise AgentRuntimeError("Explicit Boolean model-turn recording flag required")
     granted = frozenset(allowed_tools)
     if not granted <= TOOLS:
         raise AgentRuntimeError("Unknown investigation tool capability")
@@ -389,6 +402,7 @@ def investigate_with_specialists(
             _one_specialist, name, root=root, manifest=manifest, allowed=allowed,
             patch=patch, packet=packet, provider=provider, granted=granted,
             max_rounds=max_rounds, max_tools=max_tools_per_reviewer,
+            record_turns=record_model_turns,
         ): name for name in selected}
         for fut in as_completed(future_map):
             results.append(fut.result())
@@ -406,6 +420,7 @@ def investigate_with_specialists(
         "format": FORMAT,
         "status": "complete" if complete else "incomplete",
         "execution": "explicit_opt_in_read_only_local_model",
+        "model_turn_recording": "opt_in_model_json_only" if record_model_turns else "disabled",
         "snapshot_id": manifest["snapshot_id"],
         "patch_sha256": hashlib.sha256(patch.encode("utf-8")).hexdigest(),
         "reviewer_runs": results,
