@@ -91,6 +91,8 @@ def main(argv=None):
                         help='Model turns per specialist (1..5)')
     parser.add_argument('--investigation-tools',type=int,default=3,
                         help='Authorized tool calls per specialist (1..4)')
+    parser.add_argument('--record-model-turns',action='store_true',
+                        help='Opt-in capture of model JSON turns in ai-investigate output')
     parser.add_argument('--replay-dataset',help='Bounded labeled investigation model-turn replay dataset')
     parser.add_argument('--baseline-replay',help='Baseline investigation replay result JSON')
     parser.add_argument('--candidate-replay',help='Candidate investigation replay result JSON')
@@ -110,6 +112,8 @@ def main(argv=None):
         parser.error('--save-state is only supported by rerun')
     if args.allow_tool and args.command not in ('investigate','ai-investigate'):
         parser.error('--allow-tool is only supported by investigate and ai-investigate')
+    if args.record_model_turns and args.command != 'ai-investigate':
+        parser.error('--record-model-turns is only supported by ai-investigate')
     if args.command=='investigation-replay':
         if not args.replay_dataset:
             parser.error('investigation-replay needs --replay-dataset FILE')
@@ -141,6 +145,7 @@ def main(argv=None):
                 max_rounds=args.investigation_rounds,
                 max_tools_per_reviewer=args.investigation_tools,
                 max_workers=args.agent_parallel,
+                record_model_turns=args.record_model_turns,
             )
         except (DiffError,AgentRuntimeError,OSError,UnicodeError) as exc:
             parser.error(str(exc))
