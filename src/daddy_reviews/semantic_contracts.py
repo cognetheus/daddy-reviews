@@ -20,7 +20,8 @@ MAX_FILES = 4000
 MAX_FILE_BYTES = 350_000
 MAX_TOTAL_BYTES = 24_000_000
 MAX_MANIFEST_BYTES = 8_000_000
-CONFIG = {"tsconfig.json", "jsconfig.json", "pyproject.toml", "go.mod", "pom.xml"}
+CONFIG = {"tsconfig.json", "jsconfig.json", "pyproject.toml", "go.mod", "pom.xml",
+          "openapi.json", "openapi-v3.json", "swagger.json"}
 DIGEST = re.compile(r"[a-f0-9]{64}\Z")
 ORIGINS = {"compiler", "language_server", "ast", "lexical", "manual", "test", "runtime"}
 CERTAINTY = {"resolved", "candidate", "unknown"}
