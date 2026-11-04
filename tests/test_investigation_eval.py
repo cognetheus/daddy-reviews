@@ -263,3 +263,44 @@ def test_cli_reports_missing_or_invalid_replay_file_as_usage_error(capsys, tmp_p
     with pytest.raises(SystemExit) as exc:
         main(["investigation-replay", "--replay-dataset", str(tmp_path / "missing.json")])
     assert exc.value.code == 2
+
+
+def test_comparison_rejects_tampered_report_metrics():
+    original = evaluate_replay(small("synthetic-matched-defect"))
+    forged = copy.deepcopy(original)
+    forged["metrics_by_tier"]["all"]["precision"] = 1.0
+    forged["cases"][0]["fp"] = 1
+    with pytest.raises(ReplayError):
+        compare_replay(original, forged)
+
+
+def test_paired_comparison_catches_precision_decline_on_completed_cases():
+    baseline_data = small("synthetic-matched-defect")
+    candidate_data = copy.deepcopy(baseline_data)
+    candidate_data["cases"][0]["reviewers"].append({
+        "name": "code-quality",
+        "turns": [
+            {"kind": "tool", "call": {"tool": "read_file", "path": "src/auth.py",
+                                     "start_line": 1, "end_line": 2}},
+            {"kind": "final", "findings": [{
+                "rule": "SYNTHETIC-EXTRA", "path": "src/auth.py", "line": 1,
+                "claim": "Example false alarm", "evidence": "No verified defect",
+                "severity": "low", "citations": ["E1"],
+            }]},
+        ],
+    })
+    baseline = evaluate_replay(baseline_data)
+    candidate = evaluate_replay(candidate_data)
+    assert candidate["status"] == "evaluated"
+    assert candidate["metrics_by_tier"]["all"]["fp"] == 1
+    result = compare_replay(baseline, candidate)
+    assert result["status"] == "regression"
+    assert "precision_regression" in result["regression_flags"]
+
+
+def test_source_fixtures_cannot_write_outside_replay_directory(tmp_path):
+    data = small()
+    data["cases"][0]["files"][".git/config"] = "bad"
+    with pytest.raises(ReplayError):
+        validate_replay_dataset(data)
+    assert not (tmp_path / "config").exists()
