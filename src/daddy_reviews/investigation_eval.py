@@ -419,17 +419,43 @@ def evaluate_replay(dataset):
     }
 
 
+def _check_replay_report(report, label):
+    if (not isinstance(report, dict) or report.get("format") != RESULT_FORMAT
+            or report.get("status") not in {"evaluated", "contract_failed"}
+            or report.get("dataset_kind") not in {"synthetic", "human_labeled"}
+            or not isinstance(report.get("cases"), list)
+            or not HEX.fullmatch(str(report.get("fixture_set_sha256", "")))):
+        raise ReplayError(f"Invalid {label} replay result")
+    cases = report["cases"]
+    if not 1 <= len(cases) <= MAX_CASES or report.get("case_count") != len(cases):
+        raise ReplayError("Replay report case count disagrees with outcomes")
+    seen = set()
+    for row in cases:
+        if (not isinstance(row, dict) or not isinstance(row.get("id"), str)
+                or not CASE_ID.fullmatch(row["id"]) or row["id"] in seen
+                or row.get("tier") not in ("trivial", "lite", "full")
+                or row.get("status") not in ("complete", "incomplete")
+                or type(row.get("ground_truth_count")) is not int):
+            raise ReplayError("Invalid case identifier or coverage status")
+        seen.add(row["id"])
+        for field in ("tp", "fp", "fn", "severity_correct", "tool_calls", "model_turns"):
+            if type(row.get(field)) is not int or row[field] < 0:
+                raise ReplayError("Invalid replay case score")
+        if (row["tp"] > row["ground_truth_count"] or
+                row["fn"] + row["tp"] != row["ground_truth_count"] or
+                row["severity_correct"] > row["tp"]):
+            raise ReplayError("Replay case score is internally inconsistent")
+    recomputed = _aggregate(cases)
+    if _canonical(report.get("metrics_by_tier")) != _canonical(recomputed):
+        raise ReplayError("Replay report metrics do not match its case outcomes")
+
+
 def compare_replay(baseline, candidate, *, max_precision_drop=0.02,
                    max_recall_drop=0.02, max_incomplete_rise=0.02,
                    min_cases=20):
     """Detect paired-case regressions; small sets explicitly abstain from promotion."""
     for label, report in (("baseline", baseline), ("candidate", candidate)):
-        if (not isinstance(report, dict) or report.get("format") != RESULT_FORMAT
-                or report.get("status") not in {"evaluated", "contract_failed"}
-                or report.get("dataset_kind") not in ("synthetic", "human_labeled")
-                or not isinstance(report.get("cases"), list)
-                or not HEX.fullmatch(str(report.get("fixture_set_sha256", "")))):
-            raise ReplayError(f"Invalid {label} replay result")
+        _check_replay_report(report, label)
     if (baseline["fixture_set_sha256"] != candidate["fixture_set_sha256"] or
             baseline["dataset_kind"] != candidate["dataset_kind"] or
             {x["id"] for x in baseline["cases"]} !=
