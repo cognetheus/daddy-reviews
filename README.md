@@ -53,6 +53,22 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
+## R8.02 — Tool-driven specialist investigation harness (v1.15.0)
+
+**New:** opt-in, actually multi-turn specialist agents can now **request host-authorized R8.01 investigation tools**, inspect results, then return findings with **host-issued source evidence IDs**. The harness validates citations against the exact changed line and SHA-256 snapshot before accepting them. No autonomous writes, PR approvals, merge blocking or GitHub publication.
+
+```bash
+# Local Ollama-compatible model only; patch additions must match checked-out sources
+daddy-reviews ai-investigate --root . --base origin/main --head HEAD \
+  --model YOUR_LOCAL_MODEL \
+  --allow-tool read_file --allow-tool find_references \
+  --allow-tool query_dependencies --allow-tool find_tests \
+  --investigation-reviewers 3 --investigation-rounds 4 \
+  --investigation-tools 3 --agent-parallel 2
+```
+
+Failed/denied tools, invented citations, mismatched source lines and failed specialists yield **incomplete**, never a fabricated clean review. [R8.02 protocol, budgets and safeguards](docs/R8_SPECIALIST_INVESTIGATION.md).
+
 ## R8.01 — Permissioned engineering investigation tools (v1.14.0)
 
 **Seven read-only tools** now expose R7 intelligence to a typed investigation interface: `read_file`, `find_symbol`, `find_references`, `query_dependencies`, `inspect_contract`, `find_tests`, `inspect_history`. Each tool enforces explicit capabilities, bounded outputs, SHA-256 snapshot consistency, and honest partial/unavailable results. **No LLM agent can call them automatically yet**; R8.02 will add permissioned specialist orchestration.
