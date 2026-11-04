@@ -32,11 +32,12 @@ from .compiled_semantic import CompiledSemanticError, index_compiled
 from .cross_layer import CrossLayerError, build_cross_layer, cross_layer_impact
 from .context_engine import ContextRetrievalError, retrieve_context
 from .context_cache import ContextCacheError
+from .investigation import InvestigationError, InvestigationSession, ToolRequest, TOOLS
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -73,6 +74,15 @@ def main(argv=None):
     parser.add_argument('--context-cache',help='Opt-in local JSON graph metadata cache for context; never stores source excerpts')
     parser.add_argument('--context-limit',type=int,default=12,help='Maximum returned ranked source snippets (1..24)')
     parser.add_argument('--context-radius',type=int,default=3,help='Lines before and after source anchor (0..8)')
+    parser.add_argument('--tool',choices=sorted(TOOLS),help='R8.01 explicitly selected read-only investigation tool')
+    parser.add_argument('--allow-tool',action='append',choices=sorted(TOOLS),default=[],
+                        help='Grant only this investigation capability (repeatable)')
+    parser.add_argument('--path',help='Repository-relative source file to inspect')
+    parser.add_argument('--route',help='Literal OpenAPI route for inspect_contract')
+    parser.add_argument('--http-method',help='HTTP method for inspect_contract')
+    parser.add_argument('--start-line',type=int,default=1,help='Source line at start of bounded selection')
+    parser.add_argument('--end-line',type=int,default=40,help='Source line at end of bounded selection')
+    parser.add_argument('--tool-limit',type=int,default=8,help='Maximum reference/history/dependency results (1..40)')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -85,7 +95,22 @@ def main(argv=None):
         parser.error('--apply is only supported by pr-publish')
     if args.save_state and args.command != 'rerun':
         parser.error('--save-state is only supported by rerun')
-    if args.command=='context':
+    if args.allow_tool and args.command != 'investigate':
+        parser.error('--allow-tool is only supported by investigate')
+    if args.command=='investigate':
+        if not args.tool or not args.path:
+            parser.error('investigate requires --tool NAME and --path RELATIVE_SOURCE')
+        try:
+            manifest=read_source_snapshot(Path(args.snapshot_file)) if args.snapshot_file else None
+            session=InvestigationSession(root,allowed_tools=args.allow_tool,snapshot=manifest)
+            request=ToolRequest(tool=args.tool,path=args.path,symbol=args.symbol,
+                                route=args.route,method=args.http_method,
+                                start_line=args.start_line,end_line=args.end_line,
+                                limit=args.tool_limit,depth=args.max_depth)
+            data=session.execute(request)
+        except (InvestigationError,SemanticContractError,OSError) as exc:
+            parser.error(str(exc))
+    elif args.command=='context':
         if not args.changed:
             parser.error('context needs at least one --changed PATH; --symbol requires exactly one')
         try:
@@ -295,5 +320,7 @@ def main(argv=None):
     if args.command=='cross-layer' and data['graph']['status'] not in ('complete','partial'):
         raise SystemExit(2)
     if args.command=='context' and data['status'] != 'complete':
+        raise SystemExit(2)
+    if args.command=='investigate' and data['status'] != 'complete':
         raise SystemExit(2)
 if __name__=='__main__':main()
