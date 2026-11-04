@@ -70,6 +70,26 @@ jobs:
         run: pytest -q tests/test_cross_layer.py
       - name: Require ranked context, cache and all-language semantic integration tests
         run: pytest -q tests/test_context_engine.py
+      - name: Require permissioned read-only investigation tool contracts
+        run: pytest -q tests/test_investigation.py
+      - name: Smoke-test explicit-permission investigation CLI
+        run: |
+          python - <<'PY'
+          import json, subprocess, sys
+          base = [sys.executable, "-m", "daddy_reviews.cli", "investigate",
+                  "--root", ".", "--tool", "read_file",
+                  "--path", "src/daddy_reviews/investigation.py",
+                  "--end-line", "3"]
+          denied = subprocess.run(base, capture_output=True, text=True, timeout=30)
+          assert denied.returncode == 2
+          assert json.loads(denied.stdout)["status"] == "denied"
+          allowed = subprocess.run(base + ["--allow-tool", "read_file"],
+                                   capture_output=True, text=True, timeout=30)
+          assert allowed.returncode == 0, allowed.stderr
+          proof = json.loads(allowed.stdout)
+          assert proof["status"] == "complete" and proof["evidence"][0]["source_sha256"]
+          assert proof["trust"] == "untrusted_repository_source"
+          PY
       - name: Smoke-test source-backed context CLI on repository
         run: |
           python - <<'PY'
