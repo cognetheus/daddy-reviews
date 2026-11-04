@@ -175,6 +175,7 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Added a versioned fixture format separating `synthetic` from self-declared `human_labeled` data. The bundled ten scenarios cover true-positive, false-positive, false-negative, clean, permission-denied, forged citations, missing tools, provider timeout, injected source text and duplicate-reviewer findings.
 - Scoring measures exact path/line/rule TP/FP/FN, precision/recall/F1, severity agreement, clean-case false-positive rate, incomplete coverage, model turns, tool calls and actual local replay latency. Missing inference tokens and cost remain unavailable (not zero).
 - Added deterministic SHA-256 transcript digests excluding volatile local timings, strict replay-step completeness checks, and `investigation-compare` with matching-corpus verification, recalculated score integrity, new-incomplete-case detection and configured regression thresholds.
+- Added default-off `ai-investigate --record-model-turns` to capture model JSON decisions (without raw tool responses or source snippets) for explicitly assembled future replay corpora; errors are recorded as safe transport-fault markers.
 - **Promotion abstains** on synthetic or undersized corpora. Actual human-adjudicated repository cases and live-model outcome evaluation remain necessary before claiming real-world reviewer quality.
 - Regression suite and CLI smoke cover the above in the Python 3.10/3.12/3.13 CI matrix. Details: [R8.03 replay and evaluation](R8_INVESTIGATION_REPLAY.md).
 
