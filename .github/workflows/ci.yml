@@ -72,6 +72,8 @@ jobs:
         run: pytest -q tests/test_context_engine.py
       - name: Require permissioned read-only investigation tool contracts
         run: pytest -q tests/test_investigation.py
+      - name: Require specialist agent tool-call harness and citation regressions
+        run: pytest -q tests/test_investigative_agents.py
       - name: Smoke-test explicit-permission investigation CLI
         run: |
           python - <<'PY'
