@@ -452,7 +452,7 @@ def _check_replay_report(report, label):
 
 def compare_replay(baseline, candidate, *, max_precision_drop=0.02,
                    max_recall_drop=0.02, max_incomplete_rise=0.02,
-                   min_cases=20):
+                   max_clean_fp_rise=0.02, min_cases=20):
     """Detect paired-case regressions; small sets explicitly abstain from promotion."""
     for label, report in (("baseline", baseline), ("candidate", candidate)):
         _check_replay_report(report, label)
@@ -462,7 +462,8 @@ def compare_replay(baseline, candidate, *, max_precision_drop=0.02,
             {x["id"] for x in candidate["cases"]} or
             len(baseline["cases"]) != len(candidate["cases"])):
         raise ReplayError("Baseline and candidate must use identical ground-truth source fixtures")
-    for rate in (max_precision_drop, max_recall_drop, max_incomplete_rise):
+    for rate in (max_precision_drop, max_recall_drop, max_incomplete_rise,
+                 max_clean_fp_rise):
         if (isinstance(rate, bool) or not isinstance(rate, (float, int)) or
                 not math.isfinite(rate) or not 0 <= rate <= 1):
             raise ReplayError("Regression threshold must be finite fraction 0..1")
@@ -485,6 +486,9 @@ def compare_replay(baseline, candidate, *, max_precision_drop=0.02,
     if (deltas["incomplete_rate"] is not None
             and deltas["incomplete_rate"] > max_incomplete_rise):
         regressions.append("incomplete_rate_regression")
+    if (deltas["clean_case_false_positive_rate"] is not None
+            and deltas["clean_case_false_positive_rate"] > max_clean_fp_rise):
+        regressions.append("clean_case_fp_rate_regression")
     prior = {x["id"]: x for x in baseline["cases"]}
     newly_broken = sorted(
         x["id"] for x in candidate["cases"]
