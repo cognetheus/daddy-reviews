@@ -159,4 +159,14 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - The `investigate` CLI does **not** automatically grant any capability; caller must include `--allow-tool` explicitly. The R8.01 API is deterministic, not model-orchestrated.
 - See [R8.01 design, tools and safeguards](R8_INVESTIGATION_TOOLS.md).
 
-**Next: R8.02** — Specialist agent investigation harness: bounded model-request/response schema, tool-call authorization and audit, deterministic termination, citation joins and human review gates. No automatic merge blocking without evidence and explicit permission.
+### R8.02 — Bounded tool-driven specialist reviewer harness (v1.15.0)
+
+- Delivered opt-in `ai-investigate` command and Python `investigate_with_specialists` orchestration; actual local model turns request one typed, granted read-only tool at a time, receive host-verified evidence, and finish with JSON candidate findings.
+- Requires the patch's added line texts to exactly match the captured R7.01 working-tree source; incomplete/stale snapshots or unsupported binary/deleted-only diffs cannot produce a falsely grounded review.
+- Specialists retain independent R8.01 tool sessions and evidence namespaces. Tool/call/round/model-payload/parallelism caps, per-call Ollama timeout, strict response schemas and failure isolation apply; malformed provider output is a failed reviewer, not a clean finding result.
+- Host issues citations only for tools whose source spans independently pass snapshot-ID, source SHA-256 and line-range validation. Candidate findings must cite a host-issued span overlapping the exact changed added line; model assertions of `confirmed` or merge permission are rejected.
+- Existing R6 `adjudicate` deduplicates candidates. The resulting report always uses `verification: unverified`, `merge_action: none`, `github_publication: none`; human verification is still required.
+- CI regression tests cover actual local mock-Ollama multi-turn CLI traffic, permission denial, forged citations/locations/source hashes, independent reviewers, provider timeouts, unsafe action payloads, stale source, source mismatch and finite budgets.
+- Docs and caveats: [R8.02 specialist investigation harness](R8_SPECIALIST_INVESTIGATION.md). No real-model accuracy benchmark is claimed by mock transport tests.
+
+**Next: R8.03** — Human-labeled specialist investigation benchmarks, deterministic tool-transcript replay, false-positive and missed-defect calibration, and performance/call-budget governance. Automated PR publication and merge blocking remain separate explicit-human gates.
