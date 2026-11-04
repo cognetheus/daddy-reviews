@@ -430,10 +430,10 @@ def test_forged_tool_snapshot_id_and_line_range_are_rejected(tmp_path, monkeypat
 def test_model_turn_recording_is_opt_in_and_omits_tool_payloads(tmp_path):
     seed(tmp_path)
     def provider(reviewer, messages):
-        return read_call() if len(messages) == 1 else {
+        action = read_call() if len(messages) == 1 else {
             "kind": "final", "findings": [finding()],
-            "_usage": {"input_tokens": 12, "output_tokens": 8},
         }
+        return {**action, "_usage": {"input_tokens": 12, "output_tokens": 8}}
     opts = dict(allowed_tools={"read_file"}, reviewers=("security",))
     default = investigate_with_specialists(tmp_path, PATCH, provider, **opts)
     assert default["model_turn_recording"] == "disabled"
@@ -449,7 +449,7 @@ def test_model_turn_recording_is_opt_in_and_omits_tool_payloads(tmp_path):
     assert "tool_result" not in json.dumps(recorded)
     assert "source_sha256" not in json.dumps(recorded)
     assert "_usage" not in json.dumps(recorded)
-    assert captured["reviewer_runs"][0]["usage"]["input_tokens"] == 12
+    assert captured["reviewer_runs"][0]["usage"]["input_tokens"] == 24
 
 
 def test_recorded_provider_timeout_has_replay_fault_marker(tmp_path):
@@ -465,6 +465,7 @@ def test_recorded_provider_timeout_has_replay_fault_marker(tmp_path):
 
 
 def test_recorded_turns_replay_through_same_source_and_citations(tmp_path):
+    from pathlib import Path
     from daddy_reviews.investigation_eval import evaluate_replay, read_replay_dataset
     seed(tmp_path)
     report = investigate_with_specialists(
