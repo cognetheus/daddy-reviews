@@ -155,6 +155,7 @@ def _semantic(root, snapshot, req):
 
 
 def _symbols(root, snapshot, req):
+    language = LANGUAGES.get(Path(req.path).suffix.lower())
     result = _semantic(root, snapshot, req)
     if result is None:
         return _reply(req.tool, "unavailable", snapshot,
