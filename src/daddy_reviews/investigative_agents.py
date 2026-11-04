@@ -13,6 +13,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from time import perf_counter
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener
 
@@ -237,6 +238,7 @@ def _final_findings(turn, reviewer, allowed, registry):
 
 def _one_specialist(reviewer, *, root, manifest, allowed, patch, packet,
                     provider, granted, max_rounds, max_tools):
+    started = perf_counter()
     session = InvestigationSession(root, allowed_tools=granted,
                                    snapshot=manifest, max_calls=max_tools,
                                    max_bytes=90_000)
@@ -335,6 +337,7 @@ def _one_specialist(reviewer, *, root, manifest, allowed, patch, packet,
     return {
         "reviewer": reviewer, "status": "completed" if failure is None else "failed",
         "reason": failure, "round_count": len(audit), "tool_calls": tool_calls,
+        "latency_ms": round((perf_counter() - started) * 1000, 2),
         "audit": audit[:MAX_AUDIT], "usage": usage if usage["complete"] else None,
         "findings": findings if failure is None else [],
         "cited_evidence_count": len(registry),
