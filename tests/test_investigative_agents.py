@@ -140,6 +140,8 @@ def test_denied_tool_does_not_execute_and_cannot_create_false_clean(tmp_path):
         tmp_path, PATCH, provider, allowed_tools=(), reviewers=("security",),
     )
     assert report["reviewer_runs"][0]["audit"][0]["status"] == "denied"
+    assert report["status"] == "incomplete"
+    assert report["reviewer_runs"][0]["reason"] == "tool_denied"
     assert report["merge_action"] == "none"
     assert report["model_findings"] == []
 
