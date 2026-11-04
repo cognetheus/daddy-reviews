@@ -74,6 +74,25 @@ jobs:
         run: pytest -q tests/test_investigation.py
       - name: Require specialist agent tool-call harness and citation regressions
         run: pytest -q tests/test_investigative_agents.py
+      - name: Require replay, human-label gate and paired-regression scenarios
+        run: pytest -q tests/test_investigation_eval.py
+      - name: Smoke-test deterministic replay and comparison CLI
+        run: |
+          python -m daddy_reviews.cli investigation-replay --replay-dataset evals/investigation_replay_synthetic.json > /tmp/investigation-replay.json
+          python -m daddy_reviews.cli investigation-compare --baseline-replay /tmp/investigation-replay.json --candidate-replay /tmp/investigation-replay.json > /tmp/investigation-compare.json
+          python - <<'PY'
+          import json
+          replay = json.load(open('/tmp/investigation-replay.json'))
+          comparison = json.load(open('/tmp/investigation-compare.json'))
+          assert replay['status'] == 'evaluated'
+          assert replay['dataset_kind'] == 'synthetic' and replay['case_count'] == 10
+          assert replay['metrics_by_tier']['all']['tp'] == 2
+          assert replay['metrics_by_tier']['all']['fp'] == 2
+          assert replay['metrics_by_tier']['all']['fn'] == 1
+          assert comparison['status'] == 'insufficient_evidence'
+          assert not comparison['promotion_eligible']
+          assert not replay['production_model_quality_claim']
+          PY
       - name: Smoke-test explicit-permission investigation CLI
         run: |
           python - <<'PY'
