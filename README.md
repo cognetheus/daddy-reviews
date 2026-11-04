@@ -53,6 +53,22 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
+## R8.01 — Permissioned engineering investigation tools (v1.14.0)
+
+**Seven read-only tools** now expose R7 intelligence to a typed investigation interface: `read_file`, `find_symbol`, `find_references`, `query_dependencies`, `inspect_contract`, `find_tests`, `inspect_history`. Each tool enforces explicit capabilities, bounded outputs, SHA-256 snapshot consistency, and honest partial/unavailable results. **No LLM agent can call them automatically yet**; R8.02 will add permissioned specialist orchestration.
+
+```bash
+# Omission of --allow-tool returns a machine-readable denial
+daddy-reviews investigate --root . --tool read_file \
+  --allow-tool read_file --path src/auth.py --end-line 30
+
+# Reference lookup using the relevant Python/TS/javac/Roslyn semantic adapter
+daddy-reviews investigate --root . --tool find_references \
+  --allow-tool find_references --path src/auth.py --symbol authorize
+```
+
+See [R8.01 investigation tool API, permissions, and limitations](docs/R8_INVESTIGATION_TOOLS.md).
+
 ## R7.06 — Ranked context retrieval & index lifecycle (v1.13.0)
 
 **New:** an opt-in reviewer-facing `context` command that ranks relevant source excerpts using existing import and cross-layer evidence, optionally adds **real Python AST, TypeScript, javac or Roslyn symbol references**, and verifies every returned location against the current R7.01 source manifest.
