@@ -425,3 +425,62 @@ def test_forged_tool_snapshot_id_and_line_range_are_rejected(tmp_path, monkeypat
         )
         assert report["status"] == "incomplete"
         assert report["model_findings"] == []
+
+
+def test_model_turn_recording_is_opt_in_and_omits_tool_payloads(tmp_path):
+    seed(tmp_path)
+    def provider(reviewer, messages):
+        return read_call() if len(messages) == 1 else {
+            "kind": "final", "findings": [finding()],
+            "_usage": {"input_tokens": 12, "output_tokens": 8},
+        }
+    opts = dict(allowed_tools={"read_file"}, reviewers=("security",))
+    default = investigate_with_specialists(tmp_path, PATCH, provider, **opts)
+    assert default["model_turn_recording"] == "disabled"
+    assert "recorded_model_turns" not in default["reviewer_runs"][0]
+
+    captured = investigate_with_specialists(
+        tmp_path, PATCH, provider, record_model_turns=True, **opts,
+    )
+    assert captured["status"] == "complete"
+    assert captured["model_turn_recording"] == "opt_in_model_json_only"
+    recorded = captured["reviewer_runs"][0]["recorded_model_turns"]
+    assert recorded == [read_call(), {"kind": "final", "findings": [finding()]}]
+    assert "tool_result" not in json.dumps(recorded)
+    assert "source_sha256" not in json.dumps(recorded)
+    assert "_usage" not in json.dumps(recorded)
+    assert captured["reviewer_runs"][0]["usage"]["input_tokens"] == 12
+
+
+def test_recorded_provider_timeout_has_replay_fault_marker(tmp_path):
+    seed(tmp_path)
+    report = investigate_with_specialists(
+        tmp_path, PATCH, lambda reviewer, messages: (_ for _ in ()).throw(TimeoutError()),
+        reviewers=("security",), record_model_turns=True,
+    )
+    assert report["status"] == "incomplete"
+    assert report["reviewer_runs"][0]["recorded_model_turns"] == [
+        {"kind":"transport_error","error":"TimeoutError"},
+    ]
+
+
+def test_recorded_turns_replay_through_same_source_and_citations(tmp_path):
+    from daddy_reviews.investigation_eval import evaluate_replay, read_replay_dataset
+    seed(tmp_path)
+    report = investigate_with_specialists(
+        tmp_path, PATCH,
+        lambda reviewer, messages: read_call() if len(messages) == 1 else {
+            "kind":"final","findings":[finding()],
+        },
+        allowed_tools={"read_file"}, reviewers=("security",),
+        record_model_turns=True,
+    )
+    corpus = read_replay_dataset(
+        Path(__file__).resolve().parents[1] / "evals/investigation_replay_synthetic.json"
+    )
+    case = next(c for c in corpus["cases"] if c["id"] == "synthetic-matched-defect")
+    case["reviewers"][0]["turns"] = report["reviewer_runs"][0]["recorded_model_turns"]
+    corpus["cases"] = [case]
+    evaluated = evaluate_replay(corpus)
+    assert evaluated["status"] == "evaluated"
+    assert evaluated["cases"][0]["tp"] == 1
