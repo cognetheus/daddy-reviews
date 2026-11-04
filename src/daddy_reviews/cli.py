@@ -34,11 +34,12 @@ from .context_engine import ContextRetrievalError, retrieve_context
 from .context_cache import ContextCacheError
 from .investigation import InvestigationError, InvestigationSession, ToolRequest, TOOLS
 from .investigative_agents import investigate_with_specialists, local_investigation_provider
+from .investigation_eval import ReplayError, read_replay_dataset, read_replay_report, evaluate_replay, compare_replay
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -90,6 +91,11 @@ def main(argv=None):
                         help='Model turns per specialist (1..5)')
     parser.add_argument('--investigation-tools',type=int,default=3,
                         help='Authorized tool calls per specialist (1..4)')
+    parser.add_argument('--replay-dataset',help='Bounded labeled investigation model-turn replay dataset')
+    parser.add_argument('--baseline-replay',help='Baseline investigation replay result JSON')
+    parser.add_argument('--candidate-replay',help='Candidate investigation replay result JSON')
+    parser.add_argument('--min-replay-cases',type=int,default=20,
+                        help='Minimum human-labeled cases before evaluation can support promotion')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -104,7 +110,23 @@ def main(argv=None):
         parser.error('--save-state is only supported by rerun')
     if args.allow_tool and args.command not in ('investigate','ai-investigate'):
         parser.error('--allow-tool is only supported by investigate and ai-investigate')
-    if args.command=='ai-investigate':
+    if args.command=='investigation-replay':
+        if not args.replay_dataset:
+            parser.error('investigation-replay needs --replay-dataset FILE')
+        try:
+            data=evaluate_replay(read_replay_dataset(Path(args.replay_dataset)))
+        except (ReplayError,OSError,UnicodeError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='investigation-compare':
+        if not args.baseline_replay or not args.candidate_replay:
+            parser.error('investigation-compare requires --baseline-replay and --candidate-replay')
+        try:
+            data=compare_replay(read_replay_report(Path(args.baseline_replay)),
+                                read_replay_report(Path(args.candidate_replay)),
+                                min_cases=args.min_replay_cases)
+        except (ReplayError,OSError,UnicodeError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='ai-investigate':
         if not args.model:
             parser.error('ai-investigate requires --model and explicit local inference opt-in')
         if not 1 <= args.investigation_reviewers <= 6:
@@ -349,5 +371,9 @@ def main(argv=None):
     if args.command=='investigate' and data['status'] != 'complete':
         raise SystemExit(2)
     if args.command=='ai-investigate' and data['status'] != 'complete':
+        raise SystemExit(2)
+    if args.command=='investigation-replay' and data['status'] != 'evaluated':
+        raise SystemExit(2)
+    if args.command=='investigation-compare' and data['status'] == 'regression':
         raise SystemExit(2)
 if __name__=='__main__':main()
