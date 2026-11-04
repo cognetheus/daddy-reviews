@@ -348,13 +348,18 @@ def test_cli_local_model_two_turn_investigation_and_permissions(tmp_path, capsys
                 "--model", "test-model", "--ollama-url",
                 f"http://127.0.0.1:{server.server_port}",
                 "--agent-timeout","3", "--investigation-reviewers", "1",
-                "--agent-parallel", "1", "--allow-tool", "read_file"]
+                "--agent-parallel", "1", "--allow-tool", "read_file",
+                "--record-model-turns"]
         main(args)
         body = json.loads(capsys.readouterr().out)
         assert body["status"] == "complete"
         assert len(body["reviewer_runs"]) == 1
         assert len(body["model_findings"]) == 1
         assert body["model_findings"][0]["citations"] == ["E1"]
+        assert body["model_turn_recording"] == "opt_in_model_json_only"
+        assert body["reviewer_runs"][0]["recorded_model_turns"] == [
+            read_call(), {"kind":"final","findings":[finding()]},
+        ]
         assert len(incoming) == 2
         assert body["github_publication"] == "none"
     finally:
