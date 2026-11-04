@@ -304,3 +304,26 @@ def test_source_fixtures_cannot_write_outside_replay_directory(tmp_path):
     with pytest.raises(ReplayError):
         validate_replay_dataset(data)
     assert not (tmp_path / "config").exists()
+
+
+def test_clean_case_false_positive_regression_even_without_precision_denominator():
+    baseline_dataset = small("synthetic-clean-skip-tools")
+    candidate_dataset = copy.deepcopy(baseline_dataset)
+    case = candidate_dataset["cases"][0]
+    case["allowed_tools"] = ["read_file"]
+    case["reviewers"][0]["turns"] = [
+        {"kind": "tool", "call": {"tool": "read_file",
+                                 "path": "src/config.py", "start_line": 1, "end_line": 2}},
+        {"kind": "final", "findings": [{
+            "rule": "UNSUPPORTED-ALARM", "path": "src/config.py", "line": 1,
+            "claim": "Wrong claim", "evidence": "No production proof",
+            "severity": "low", "citations": ["E1"],
+        }]},
+    ]
+    before = evaluate_replay(baseline_dataset)
+    after = evaluate_replay(candidate_dataset)
+    assert before["metrics_by_tier"]["all"]["precision"] is None
+    assert after["status"] == "evaluated"
+    compared = compare_replay(before, after)
+    assert compared["status"] == "regression"
+    assert "clean_case_fp_rate_regression" in compared["regression_flags"]
