@@ -147,4 +147,16 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 
 **R7 complete within its explicitly scoped v1 vertical slices (R7.01–R7.06).** Remaining R7 architecture limitations: persistent whole-repository language-server databases, complete monorepo/JDT LS/MSBuild workspace resolution, generalized cross-language bindings, runtime-verifiable call chains and automated model-tool access. These are deliberate future R8+ capabilities, not implied by the release.
 
-**Next: R8.01** — Typed read-only investigation tools (`read_file`, `find_symbol`, `find_references`, `query_dependencies`, `inspect_contract`, `find_tests`, `inspect_history`) with snapshot consistency, tool permissions and bounded evidence.
+## R8 — Permissioned agent investigation
+
+### R8.01 — Deterministic read-only investigation tool contracts (v1.14.0)
+
+- Implemented seven typed, explicitly capability-granted Python and CLI investigation tools: file inspection, symbol discovery, symbol references, dependency exploration, OpenAPI contract inspection, test candidates, and local Git history.
+- All tools share R7.01 manifest consistency; source locations remain SHA-256-provenanced. No tool executes reviewed code, writes files, or performs outbound requests. Optional compiler-based symbol lookups reuse R7.02/R7.04 adapters with their explicit limitations.
+- Introduced `InvestigationSession` with default-deny allowlist, 12-call and 128-KB response ceiling, per-result 32-KB ceiling, input/path validation, line budgets, and a machine-readable failure taxonomy.
+- Added conventional OpenAPI JSON specs to the bounded R7.01 source manifest so contract tools cannot inspect untracked files. Git history is local, credential-free and HEAD-pinned.
+- Added CI regression coverage for actual seven-tool behavior, permission denial/grant, stale source, missing symbols, truncated references, prompt injection, malformed contracts, unconnected test names and Git history.
+- The `investigate` CLI does **not** automatically grant any capability; caller must include `--allow-tool` explicitly. The R8.01 API is deterministic, not model-orchestrated.
+- See [R8.01 design, tools and safeguards](R8_INVESTIGATION_TOOLS.md).
+
+**Next: R8.02** — Specialist agent investigation harness: bounded model-request/response schema, tool-call authorization and audit, deterministic termination, citation joins and human review gates. No automatic merge blocking without evidence and explicit permission.
