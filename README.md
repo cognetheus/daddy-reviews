@@ -53,6 +53,24 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
+## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
+
+**New:** run recorded *model decisions* through **real permissioned R8.01 tools** in isolated source fixtures, then score the R8.02 investigation harness for true positives, false positives, missed issues, incomplete sessions, and tool efficiency. Results include reproducible trace hashes and source-verified citation checks. A paired comparator flags deteriorating precision/recall or newly failed investigations.
+
+```bash
+# Purely synthetic examples, no model inference or network
+daddy-reviews investigation-replay \
+  --replay-dataset evals/investigation_replay_synthetic.json > /tmp/replay.json
+
+# Compare two evaluations over exactly matching source and ground truth
+daddy-reviews investigation-compare \
+  --baseline-replay /tmp/replay.json --candidate-replay /tmp/replay.json
+```
+
+The included ten cases are deliberately **synthetic** and cannot establish actual model defect-detection quality or authorize rollout. Only an independently adjudicated, adequately sized labeled corpus can support empirical model evaluation; even then, publication and merge gates require separate human approval.
+
+See [R8.03 replay, scoring, regression and limits](docs/R8_INVESTIGATION_REPLAY.md).
+
 ## R8.02 — Tool-driven specialist investigation harness (v1.15.0)
 
 **New:** opt-in, actually multi-turn specialist agents can now **request host-authorized R8.01 investigation tools**, inspect results, then return findings with **host-issued source evidence IDs**. The harness validates citations against the exact changed line and SHA-256 snapshot before accepting them. No autonomous writes, PR approvals, merge blocking or GitHub publication.
