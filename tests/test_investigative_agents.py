@@ -312,3 +312,71 @@ def test_real_local_ollama_wire_protocol_no_redirect_or_remote_endpoint(tmp_path
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+def test_cli_local_model_two_turn_investigation_and_permissions(tmp_path, capsys):
+    from daddy_reviews.cli import main
+
+    seed(tmp_path)
+    patch_file = tmp_path / "incoming.diff"
+    patch_file.write_text(PATCH, encoding="utf-8")
+    incoming = []
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            size = int(self.headers.get("Content-Length", "0"))
+            req = json.loads(self.rfile.read(size))
+            incoming.append(req)
+            if len(req["messages"]) == 2:
+                parsed = read_call()
+            else:
+                tool_message = json.loads(req["messages"][-1]["content"])
+                assert tool_message["host_evidence_ids"]["E1"]["path"] == "src/auth.py"
+                parsed = {"kind": "final", "findings": [finding()]}
+            response = json.dumps({"message": {"content": json.dumps(parsed)}}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type","application/json")
+            self.send_header("Content-Length",str(len(response)))
+            self.end_headers()
+            self.wfile.write(response)
+        def log_message(self,*args): pass
+
+    server = ThreadingHTTPServer(("127.0.0.1",0),Handler)
+    thread = threading.Thread(target=server.serve_forever,daemon=True)
+    thread.start()
+    try:
+        args = ["ai-investigate", "--root", str(tmp_path), "--diff-file", str(patch_file),
+                "--model", "test-model", "--ollama-url",
+                f"http://127.0.0.1:{server.server_port}",
+                "--agent-timeout","3", "--investigation-reviewers", "1",
+                "--agent-parallel", "1", "--allow-tool", "read_file"]
+        main(args)
+        body = json.loads(capsys.readouterr().out)
+        assert body["status"] == "complete"
+        assert len(body["reviewer_runs"]) == 1
+        assert len(body["model_findings"]) == 1
+        assert body["model_findings"][0]["citations"] == ["E1"]
+        assert len(incoming) == 2
+        assert body["github_publication"] == "none"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+
+
+def test_cli_rejects_missing_model_before_loading_any_diff(tmp_path):
+    from daddy_reviews.cli import main
+    seed(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        main(["ai-investigate","--root",str(tmp_path),"--allow-tool","read_file"])
+    assert e.value.code == 2
+
+
+def test_reviewer_number_cap_is_enforced_in_python_api(tmp_path):
+    seed(tmp_path)
+    def provider(reviewer, messages):
+        return {"kind":"final","findings":[]}
+    report = investigate_with_specialists(
+        tmp_path,PATCH,provider,max_reviewers=1,
+    )
+    assert report["status"] == "complete"
+    assert len(report["reviewer_runs"]) == 1
