@@ -323,7 +323,7 @@ def _one_specialist(reviewer, *, root, manifest, allowed, patch, packet,
 def investigate_with_specialists(
     root: Path, patch: str, provider: Callable[[str, list[dict]], dict],
     *, allowed_tools=(), task: str = "Review pull request",
-    reviewers=None, max_rounds: int = 4,
+    reviewers=None, max_reviewers: int = 3, max_rounds: int = 4,
     max_tools_per_reviewer: int = 3, max_workers: int = 2,
 ) -> dict:
     """Run actual specialist/tool turns; opt-in and never publish or block a PR.
@@ -337,7 +337,8 @@ def investigate_with_specialists(
         raise AgentRuntimeError("Valid root, patch and provider are required")
     if not 0 < len(patch.encode("utf-8")) <= MAX_PATCH_BYTES:
         raise AgentRuntimeError("Investigation patch exceeds 24 KB or is empty")
-    if (type(max_rounds) is not int or not 1 <= max_rounds <= MAX_ROUNDS or
+    if (type(max_reviewers) is not int or not 1 <= max_reviewers <= MAX_REVIEWERS or
+            type(max_rounds) is not int or not 1 <= max_rounds <= MAX_ROUNDS or
             type(max_tools_per_reviewer) is not int or
             not 1 <= max_tools_per_reviewer <= MAX_TOOLS_PER_REVIEWER or
             type(max_workers) is not int or not 1 <= max_workers <= 3):
@@ -353,7 +354,7 @@ def investigate_with_specialists(
     allowed = _changed_added_lines(patch, root, manifest)
     packet = review_patch(root, patch, task)
     selected = tuple(reviewers) if reviewers is not None else tuple(
-        packet["review_tier"]["recommended_reviewers"])[:3]
+        packet["review_tier"]["recommended_reviewers"])[:max_reviewers]
     if (not selected or len(selected) > MAX_REVIEWERS or
             len(set(selected)) != len(selected) or
             any(name not in SPECIALISTS for name in selected)):
