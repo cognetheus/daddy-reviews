@@ -115,7 +115,8 @@ def main(argv=None):
             provider=local_investigation_provider(args.model,args.ollama_url,args.agent_timeout)
             data=investigate_with_specialists(
                 root,patch,provider,allowed_tools=args.allow_tool,task=args.task,
-                reviewers=None,max_rounds=args.investigation_rounds,
+                reviewers=None,max_reviewers=args.investigation_reviewers,
+                max_rounds=args.investigation_rounds,
                 max_tools_per_reviewer=args.investigation_tools,
                 max_workers=args.agent_parallel,
             )
