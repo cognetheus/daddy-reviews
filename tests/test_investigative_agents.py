@@ -471,7 +471,7 @@ def test_recorded_turns_replay_through_same_source_and_citations(tmp_path):
     report = investigate_with_specialists(
         tmp_path, PATCH,
         lambda reviewer, messages: read_call() if len(messages) == 1 else {
-            "kind":"final","findings":[finding()],
+            "kind":"final","findings":[dict(finding(), rule="AUTH-EMPTY")],
         },
         allowed_tools={"read_file"}, reviewers=("security",),
         record_model_turns=True,
