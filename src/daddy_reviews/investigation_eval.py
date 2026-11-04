@@ -456,6 +456,8 @@ def compare_replay(baseline, candidate, *, max_precision_drop=0.02,
     """Detect paired-case regressions; small sets explicitly abstain from promotion."""
     for label, report in (("baseline", baseline), ("candidate", candidate)):
         _check_replay_report(report, label)
+    if baseline["status"] != "evaluated":
+        raise ReplayError("A baseline with failed replay contracts cannot authorize comparison")
     if (baseline["fixture_set_sha256"] != candidate["fixture_set_sha256"] or
             baseline["dataset_kind"] != candidate["dataset_kind"] or
             {x["id"] for x in baseline["cases"]} !=
@@ -496,7 +498,7 @@ def compare_replay(baseline, candidate, *, max_precision_drop=0.02,
     )
     if newly_broken:
         regressions.append("new_incomplete_cases")
-    if candidate["status"] == "contract_failed" and baseline["status"] == "evaluated":
+    if candidate["status"] == "contract_failed":
         regressions.append("unexpected_replay_contract_failure")
     enough = len(candidate["cases"]) >= min_cases
     if regressions:
