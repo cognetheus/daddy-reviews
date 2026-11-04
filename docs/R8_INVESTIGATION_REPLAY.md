@@ -22,6 +22,20 @@ daddy-reviews investigation-compare \
   --min-replay-cases 20
 ```
 
+### Opt-in capture of live model decisions
+
+R8.02 now supports `--record-model-turns` **only** on `ai-investigate`, and leaves it disabled by default:
+
+```bash
+daddy-reviews ai-investigate --root . --base origin/main --head HEAD \
+  --model YOUR_LOCAL_MODEL --allow-tool read_file \
+  --record-model-turns > /tmp/local-investigation.json
+```
+
+Each specialist's `recorded_model_turns` contains only the model's JSON tool-request and final-decision objects. It does **not** contain raw tool-response payloads, source excerpts, or usage envelopes. Bounded provider timeout/error markers are recorded with `kind: transport_error`. The optional capture is embedded in the result JSON; **nothing is written automatically to disk**. Users must consciously redirect the output, and model-produced claims can still contain sensitive information, so treat the artifact as confidential.
+
+To replay against the R8.03 evaluator, place the captured `recorded_model_turns` under that specialist's `turns` in an explicitly prepared dataset case, then supply the same source fixture files, patch and independent labels. The evaluator re-executes actual tools and checks matching source evidence. R8.03 does not silently collect or export whole private repositories.
+
 ### Versioned input contract
 
 Dataset `format: daddy-reviews-investigation-replay-v1`, with `dataset_kind: synthetic` or `human_labeled`, and 1–200 unique `cases`. Every case defines an ID, declared review tier, bounded repository-relative `files` mapping, actual unified `patch`, explicit `expected` defect labels (`path`, changed `line`, `rule`, `severity`), an `expected_status`, an explicit `allowed_tools` list and 1–6 scripted specialists.
