@@ -175,6 +175,26 @@ def _changed_added_lines(patch: str, root: Path, manifest: dict):
     return allowed
 
 
+def _validated_source_span(span, manifest):
+    """Validate tool-produced evidence again before assigning a host citation."""
+    if not isinstance(span, dict):
+        raise AgentRuntimeError("Tool evidence must be a source span")
+    required = {"snapshot_id", "path", "source_sha256", "start_line",
+                "end_line", "origin", "certainty"}
+    if set(span) != required or span["snapshot_id"] != manifest["snapshot_id"]:
+        raise AgentRuntimeError("Tool evidence is not bound to the source manifest")
+    index = {record["path"]: record for record in manifest["files"]}
+    record = index.get(span["path"])
+    if (not record or span["source_sha256"] != record["sha256"]
+            or type(span["start_line"]) is not int or type(span["end_line"]) is not int
+            or not 1 <= span["start_line"] <= span["end_line"] <= record["line_count"]
+            or span["origin"] not in {"compiler", "language_server", "ast", "lexical",
+                                      "manual", "test", "runtime"}
+            or span["certainty"] not in {"resolved", "candidate", "unknown"}):
+        raise AgentRuntimeError("Tool evidence failed source-hash or line validation")
+    return span
+
+
 def _tool_request(value):
     if (not isinstance(value, dict) or not set(value) <= ALLOWED_REQUEST_FIELDS
             or "tool" not in value or "path" not in value):
@@ -281,12 +301,13 @@ def _one_specialist(reviewer, *, root, manifest, allowed, patch, packet,
             # Only successful or explicitly partial tool responses supply
             # candidate citations. Evidence IDs are host-generated, not model data.
             if response["status"] in ("complete", "partial"):
-                for span in response.get("evidence", [])[:40]:
-                    if (not isinstance(span, dict) or not isinstance(span.get("path"), str)
-                            or "start_line" not in span or "end_line" not in span):
-                        continue
+                evidence = response.get("evidence", [])
+                if not isinstance(evidence, list) or len(evidence) > 40:
+                    raise AgentRuntimeError("Tool evidence exceeds schema or source span budget")
+                for span in evidence:
+                    verified = _validated_source_span(span, manifest)
                     eid = f"E{len(registry)+1}"
-                    registry[eid] = span
+                    registry[eid] = verified
                     ids.append(eid)
             audit.append({"round": round_number, "action": "tool",
                           "tool": request.tool, "path": request.path,
