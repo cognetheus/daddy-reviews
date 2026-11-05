@@ -179,4 +179,12 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - **Promotion abstains** on synthetic or undersized corpora. Actual human-adjudicated repository cases and live-model outcome evaluation remain necessary before claiming real-world reviewer quality.
 - Regression suite and CLI smoke cover the above in the Python 3.10/3.12/3.13 CI matrix. Details: [R8.03 replay and evaluation](R8_INVESTIGATION_REPLAY.md).
 
-**Next: R8.04** — Evidence-driven specialist self-check and repair/refutation workflows, explicit human escalation and bounded verification artifacts. No model-produced evidence alone may publish comments or block merges.
+### R8.04a — Bounded human verification queue (delivered increment)
+
+- Added deterministic `verification_queue` to R8.02 `ai-investigate` reports. Source-backed candidates become *pending independent verification*, not confirmed issues.
+- Groups hypotheses by changed path, line and rule; records reviewer attribution, provenance-consistent source spans, severity conflicts and suggested reproduction/refutation checks.
+- Missing/incomplete specialist runs and invalid evidence escalate to humans; no findings from a failed investigation are never called a clean result.
+- Source citations are not independently tested defect claims. No model can self-verify or authorize PR publication or merge action.
+- See [R8.04a human verification queue](R8_VERIFICATION_QUEUE.md).
+
+**Next: R8.04b** — Independent, bounded self-check/refutation turns and a separately labeled human verification artifact format. R8.04a is not full R8.04 completion.
