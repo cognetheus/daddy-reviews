@@ -4,7 +4,7 @@
 
 ![CI](https://github.com/cognetheus/daddy-reviews/actions/workflows/ci.yml/badge.svg)
 
-v1.7.0 now includes **adaptive review tiers, repository-owned standards applicability, and conservative cross-reviewer adjudication**, alongside the existing read-only diff evidence engine. The new features are deterministic planning and evidence safeguards, **not** autonomous model reviewers or automatic merge approvals.\n\nPreviously, v0.9.0 added a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
+The current v1.16.0 baseline includes read-only semantic analysis, bounded model-driven investigation, replay/calibration, and explicit human approval boundaries. R8.04a–c additionally provide an advisory evidence queue, independent counterexample challenges, and signed human-attestation adjudication as opt-in Python APIs. **No model decision can independently authorize a merge or automatic PR comment.**\n\nPreviously, v0.9.0 added a working **read-only Git diff evidence collector**, conservative Python AST symbol and reuse reconnaissance, risk-aware task routing, and a structured findings contract. This is not yet a full autonomous PR reviewer or a verified multi-language analysis platform.
 
 ## Cloudflare-inspired review phases (v1.7.0)
 
@@ -52,6 +52,19 @@ daddy-reviews telemetry --report-file reviewed-run.json
 ```
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
+
+## R8.04a–c — Evidence-driven human verification (in development)
+
+R8.04 adds a source-bound verification queue, read-only independent counterexample challenge, and an **Ed25519-signed human attestation** workflow. Two separately trusted human identities must attest a decision, and their signatures bind the exact model claim, changed-source hash, patch, and observed test-log digest. Opposing AI challenges require explicit signed human acknowledgement. Incomplete reviewers or stale evidence **escalate rather than prove clean code**.
+
+```bash
+# Only for applications using the Python human-verification API
+python -m pip install -e '.[verification]'
+```
+
+Use the developer APIs in `daddy_reviews.verification_queue`, `daddy_reviews.independent_challenge` and `daddy_reviews.human_resolution`. These do not run repository test commands, create signatures, publish GitHub reviews, or block merges. There is no R8.04 CLI yet. Signatures establish key-controlled human authorization; logs are integrity-checked from caller-supplied bytes, **not independently verified CI execution**.
+
+See [R8.04a queue](docs/R8_VERIFICATION_QUEUE.md), [R8.04b challenge](docs/R8_INDEPENDENT_CHALLENGE.md), and [R8.04c human attestation](docs/R8_HUMAN_VERIFICATION.md). R8.04d operator integration and real-world evaluation remain open.
 
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
 
