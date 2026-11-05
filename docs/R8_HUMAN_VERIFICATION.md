@@ -29,14 +29,14 @@ The corresponding **private signing keys must remain outside this repository** (
 
 Each `daddy-reviews-human-attestation-v1` record includes:
 
-- Source identity: exact `candidate_id`, `snapshot_id`, `patch_sha256`, `source_sha256`.
+- Source identity: exact `candidate_id`, **`candidate_digest`** (canonical SHA-256 of the entire original finding, claims and cited evidence), `snapshot_id`, `patch_sha256`, `source_sha256`.
 - Reviewer identity: registered `reviewer_id`, `key_id`, UTC `signed_at` timestamp.
 - A `decision` of `confirm`, `reject`, or `inconclusive`, plus a bounded rationale.
 - `challenge_sha256`: SHA-256 of the corresponding R8.04b challenge outcome, or JSON `null` if there was no challenge. A signed `challenge_acknowledged` boolean explicitly handles disagreement with the model.
 - `test` receipt: `test_id`, recorded `command`, `environment`, `outcome` (`reproduced`, `not_reproduced`, or `inconclusive`) and `log_sha256`.
 - `signature_b64`: Ed25519 signature over `b"daddy-reviews-human-attestation-v1\\n"` plus canonical, sorted-key, UTF-8 JSON of every other record field (with no spaces between separators).
 
-`signing_bytes(record)` in `daddy_reviews.human_attestation` creates the exact byte sequence that an authorized human signer must sign. An untrusted model-produced response cannot produce a valid attestation without a registered private key.
+`candidate_digest(report, candidate_id)` in `daddy_reviews.human_resolution` produces the claim-bound digest, and `signing_bytes(record)` in `daddy_reviews.human_attestation` creates the exact byte sequence that an authorized human signer must sign. An untrusted model-produced response cannot produce a valid attestation without a registered private key.
 
 ## Host-side adjudication API
 
@@ -79,7 +79,7 @@ The caller supplies **actual log bytes**; the implementation recomputes SHA-256 
 | Failed, absent, or incomplete supplied challenge result | Escalate instead of silently discarding the challenge |
 | Original reviewer incomplete or provenance invalid | Escalate despite valid human signatures |
 
-Two distinct *registered human identities* are required (configurable 2–4); multiple keys from one reviewer do not count as independent witnesses. All signature records are tied to the exact source snapshot and changed line. Duplicate signed records for the same candidate and reviewer fail closed. One human cannot overwrite an earlier contrary decision without an explicit external policy.
+Two distinct *registered human identities* are required (configurable 2–4); multiple keys from one reviewer do not count as independent witnesses. All signature records are tied to the exact original reviewer claims, source citation spans, source snapshot and changed line. Duplicate signed records for the same candidate and reviewer fail closed. One human cannot overwrite an earlier contrary decision without an explicit external policy.
 
 ## Auditing and limits
 
