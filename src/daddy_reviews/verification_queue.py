@@ -13,7 +13,7 @@ FORMAT = "daddy-reviews-verification-queue-v1"
 MAX_FINDINGS = 48
 MAX_RUNS = 6
 MAX_TEXT = 3000
-SEVERITIES = {"low", "medium", "high", "critical"}
+SEVERITIES = {"suggestion", "low", "medium", "high", "critical"}
 
 
 def _digest(value: object) -> str:
