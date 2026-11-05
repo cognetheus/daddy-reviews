@@ -195,4 +195,13 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - CI fixtures include independent counterexample verdicts, denied/forged tool references, self-review prevention, stale sources and local Ollama protocol checks.
 - See [R8.04b independent challenge](R8_INDEPENDENT_CHALLENGE.md). This is a Python developer API, not a CLI feature.
 
-**Next: R8.04c** — Independently verified human-authored test artifacts, audit provenance, and conflict-resolution workflows. R8.04 is not yet complete.
+### R8.04c — Signed human evidence and conflict policy (delivered developer API)
+
+- Implemented opt-in Ed25519 verification of human decision records against a separately supplied, enabled public-key registry. Missing keys, forged signatures, stale snapshot bindings and replayed records fail closed.
+- Bound signed human claims to exact candidate, changed-source SHA-256, patch SHA-256, captured snapshot and supplied test-log byte digests. Test commands are **recorded, never executed**; logs are not independently attested as true CI runs.
+- Requires two distinct registered human reviewer identities (configurable 2–4) for a human-attested confirmation or rejection; conflicting or incomplete evidence escalates. Challenger-vs-human contradictions require explicit signed acknowledgement.
+- Produces deterministic audit receipts and a chained hash, with no raw test-log output, autonomous GitHub publication, merge action or assertion of objectively verified defects.
+- Added adversarial signed-artifact tests and three-version Python CI gates; the `cryptography` dependency is optional via `.[verification]`.
+- See [R8.04c signed human verification](R8_HUMAN_VERIFICATION.md). This is a Python developer API, not CLI or independently attested CI provenance.
+
+**Next: R8.04d** — Secure artifact ingestion/operator CLI, stronger attestation of CI execution, and calibrated human-labeled conflict/false-positive evaluation. R8.04 remains incomplete until these trust and accuracy requirements are met.
