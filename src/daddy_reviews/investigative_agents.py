@@ -25,6 +25,7 @@ from .agents import (
 from .diff import HUNK, parse_diff
 from .investigation import InvestigationError, InvestigationSession, ToolRequest, TOOLS
 from .review import review_patch
+from .verification_queue import build_verification_queue
 from .semantic_contracts import _safe_path, capture_worktree, verify_worktree
 
 FORMAT = "daddy-reviews-agent-investigation-v1"
@@ -416,7 +417,7 @@ def investigate_with_specialists(
     complete = fresh and all(run["status"] == "completed" for run in results)
     # The evidence join is deterministic but does not independently confirm
     # a claimed defect; adjudication never authorizes merge blocking.
-    return {
+    report = {
         "format": FORMAT,
         "status": "complete" if complete else "incomplete",
         "execution": "explicit_opt_in_read_only_local_model",
@@ -440,3 +441,5 @@ def investigate_with_specialists(
             "Diff/current-worktree agreement is verified for added lines, not a Git-commit attestation.",
         ],
     }
+    report["verification_queue"] = build_verification_queue(report)
+    return report
