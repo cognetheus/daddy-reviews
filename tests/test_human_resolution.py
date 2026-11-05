@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from daddy_reviews.human_attestation import (
     FORMAT as HUMAN_FORMAT, HumanVerificationError, sha256_json, signing_bytes,
 )
-from daddy_reviews.human_resolution import adjudicate_human_verification
+from daddy_reviews.human_resolution import adjudicate_human_verification, candidate_digest
 from daddy_reviews.independent_challenge import challenge_findings
 from daddy_reviews.investigative_agents import investigate_with_specialists
 
@@ -89,6 +89,7 @@ def _signed(report, key_id, reviewer, private, *, decision="confirm",
     }
     record = {
         "format": HUMAN_FORMAT, "candidate_id": item["id"],
+        "candidate_digest": candidate_digest(report, item["id"]),
         "snapshot_id": report["snapshot_id"],
         "patch_sha256": report["patch_sha256"],
         "source_sha256": item["source_spans"][0]["sha256"],
@@ -262,6 +263,20 @@ def test_unauthorized_fields_and_bad_outcome_rejected(scenario):
     ):
         with pytest.raises(HumanVerificationError):
             _resolve(scenario, [changed])
+
+
+def test_original_model_claim_tampering_invalidates_signed_human_receipt(scenario):
+    root, report, trusted, keys, logs = scenario
+    record = _signed(report, "alice-key", "alice", keys["alice"])
+    tampered = copy.deepcopy(report)
+    tampered["model_findings"][0]["claim"] = "Opposite claim inserted after human review"
+    # Model report is not signed, but cannot silently replace what humans approved.
+    with pytest.raises(HumanVerificationError):
+        adjudicate_human_verification(root, PATCH, tampered, [record], trusted, logs)
+    tampered = copy.deepcopy(report)
+    tampered["model_findings"][0]["source_evidence"][0]["source"]["source_sha256"] = "0" * 64
+    with pytest.raises(HumanVerificationError):
+        adjudicate_human_verification(root, PATCH, tampered, [record], trusted, logs)
 
 
 def test_report_without_human_artifacts_not_clean_proof(scenario):
