@@ -187,4 +187,12 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Source citations are not independently tested defect claims. No model can self-verify or authorize PR publication or merge action.
 - See [R8.04a human verification queue](R8_VERIFICATION_QUEUE.md).
 
-**Next: R8.04b** — Independent, bounded self-check/refutation turns and a separately labeled human verification artifact format. R8.04a is not full R8.04 completion.
+### R8.04b — Independent challenge runner (delivered developer API)
+
+- Added a source-snapshot and patch-bound, opt-in independent specialist challenge with fresh R8.01 read-only tool sessions and host-issued citation IDs.
+- Challenger reviewer identity must differ from the author of each original candidate. It returns `supported`, `refuted` or `uncertain` only as **advisory** hypotheses; it cannot confirm, delete, publish or block a finding.
+- Dedicated localhost Ollama challenge protocol with bounded inference turns/tools and no redirect; invalid/forged evidence or failed tools escalate to human review.
+- CI fixtures include independent counterexample verdicts, denied/forged tool references, self-review prevention, stale sources and local Ollama protocol checks.
+- See [R8.04b independent challenge](R8_INDEPENDENT_CHALLENGE.md). This is a Python developer API, not a CLI feature.
+
+**Next: R8.04c** — Independently verified human-authored test artifacts, audit provenance, and conflict-resolution workflows. R8.04 is not yet complete.
