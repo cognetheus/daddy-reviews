@@ -23,7 +23,7 @@ IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}\Z")
 _DECISIONS = {"confirm": "reproduced", "reject": "not_reproduced",
               "inconclusive": "inconclusive"}
 _FIELDS = frozenset({
-    "format", "candidate_id", "snapshot_id", "patch_sha256", "source_sha256",
+    "format", "candidate_id", "candidate_digest", "snapshot_id", "patch_sha256", "source_sha256",
     "reviewer_id", "key_id", "signed_at", "decision", "rationale",
     "challenge_sha256", "challenge_acknowledged", "test", "signature_b64",
 })
@@ -83,6 +83,7 @@ def _verify_schema(record):
                 "candidate_id", "reviewer_id", "key_id"))
             or not isinstance(record["snapshot_id"], str)
             or not 1 <= len(record["snapshot_id"]) <= 128
+            or not _digest(record["candidate_digest"])
             or not _digest(record["patch_sha256"])
             or not _digest(record["source_sha256"])
             or not _utc_timestamp(record["signed_at"])
