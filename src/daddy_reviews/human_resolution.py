@@ -190,7 +190,7 @@ def adjudicate_human_verification(root: Path, patch: str, report: dict,
             state = "escalate_invalid_source_candidate"
         elif queue["coverage"] != "completed_reviewers_only":
             state = "escalate_incomplete_original_review"
-        elif challenge_failed or (challenge is not None and outcome is None):
+        elif (challenge is not None and challenge["status"] != "completed_advisory") or challenge_failed or (challenge is not None and outcome is None):
             state = "escalate_incomplete_independent_challenge"
         elif count_confirm and count_reject:
             state = "conflicting_human_attestations"
