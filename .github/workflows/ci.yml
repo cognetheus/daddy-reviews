@@ -74,6 +74,8 @@ jobs:
         run: pytest -q tests/test_investigation.py
       - name: Require specialist agent tool-call harness and citation regressions
         run: pytest -q tests/test_investigative_agents.py
+      - name: Require signed human attestation and independent challenge conflict regressions
+        run: pytest -q tests/test_human_resolution.py tests/test_verification_queue.py tests/test_independent_challenge.py
       - name: Require replay, human-label gate and paired-regression scenarios
         run: pytest -q tests/test_investigation_eval.py
       - name: Smoke-test deterministic replay and comparison CLI
