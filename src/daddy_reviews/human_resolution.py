@@ -22,6 +22,30 @@ FORMAT = "daddy-reviews-human-resolution-v1"
 CHALLENGE_FORMAT = "daddy-reviews-independent-challenge-v1"
 CHALLENGE_VERDICTS = frozenset({"supported", "refuted", "uncertain"})
 
+def candidate_digest(report: dict, candidate_id: str) -> str:
+    """Hash the exact source-backed hypothesis, including its original claims.
+
+    Callers sign this digest out of band. Replacing a claim, rationale, cited
+    span or reviewer attribution invalidates the prior human attestation.
+    """
+    queue = build_verification_queue(report)
+    selected = [item for item in queue["items"] if item["id"] == candidate_id]
+    if len(selected) != 1:
+        raise HumanVerificationError("Unknown candidate for signed claim binding")
+    item = selected[0]
+    findings = [
+        finding for finding in report["model_findings"]
+        if (finding["path"], finding["line"], finding["rule"]) ==
+        (item["path"], item["line"], item["rule"])
+    ]
+    return sha256_json({
+        "item": item,
+        "model_findings": sorted(findings, key=sha256_json),
+        "snapshot_id": report["snapshot_id"],
+        "patch_sha256": report["patch_sha256"],
+    })
+
+
 
 def _challenge_map(challenge, snapshot_id, patch_hash, items, manifest):
     if challenge is None:
@@ -98,6 +122,21 @@ def adjudicate_human_verification(root: Path, patch: str, report: dict,
     allowed = _changed_added_lines(patch, root, manifest)
     files = {f["path"]: f for f in manifest["files"]}
     items = {i["id"]: i for i in queue["items"]}
+    # Re-attest every model-sourced span against the *current* authoritative
+    # worktree manifest. A post-investigation report can be tampered with.
+    for item in queue["items"]:
+        if item["status"] == "needs_independent_verification":
+            if not item["source_spans"]:
+                raise HumanVerificationError("Source-backed candidate has no validated span")
+            for span in item["source_spans"]:
+                source = files.get(span["path"])
+                if (not source or source["sha256"] != span["sha256"]
+                        or span["path"] != item["path"]
+                        or type(span["start_line"]) is not int
+                        or type(span["end_line"]) is not int
+                        or not 1 <= span["start_line"] <= item["line"]
+                        <= span["end_line"] <= source["line_count"]):
+                    raise HumanVerificationError("Original model source provenance no longer matches")
     model_challenges = _challenge_map(challenge, manifest["snapshot_id"],
                                       patch_hash, queue["items"], manifest)
 
@@ -112,6 +151,7 @@ def adjudicate_human_verification(root: Path, patch: str, report: dict,
         item = items[cid]
         path = item["path"]
         if (not files.get(path) or item["line"] not in allowed.get(path, set())
+                or record.get("candidate_digest") != candidate_digest(report, cid)
                 or record.get("source_sha256") != files[path]["sha256"]
                 or record.get("snapshot_id") != manifest["snapshot_id"]
                 or record.get("patch_sha256") != patch_hash):
