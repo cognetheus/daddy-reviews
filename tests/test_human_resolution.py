@@ -182,6 +182,17 @@ def test_signed_model_disagreement_requires_explicit_acknowledgment(scenario):
     assert result["github_publication"] == "none"
 
 
+def test_incomplete_global_challenge_blocks_promotion(scenario):
+    root, report, _, keys, _ = scenario
+    challenge = _challenge(root, report, "supported")
+    challenge["status"] = "incomplete"
+    records = _records(report, keys, challenge=challenge)
+    result = _resolve(scenario, records, challenge)
+    assert result["decisions"][0]["status"] == "escalate_incomplete_independent_challenge"
+    assert result["resolved_count"] == 0
+    assert result["github_publication"] == "none"
+
+
 def test_human_disagreement_never_resolves(scenario):
     _, report, _, keys, _ = scenario
     confirm = _signed(report, "alice-key", "alice", keys["alice"])
