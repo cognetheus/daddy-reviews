@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+from datetime import datetime
 import hashlib
 import json
 import re
@@ -44,6 +45,14 @@ def runner_signing_bytes(record: dict) -> bytes:
     return DOMAIN + raw
 
 
+def _utc_observed_at(value):
+    try:
+        stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return stamp.tzinfo is not None and stamp.utcoffset().total_seconds() == 0
+    except (ValueError, TypeError):
+        return False
+
+
 def _valid_record(record):
     runner_signing_bytes(record)
     if (record["format"] != FORMAT or record["provider"] != "github_actions"
@@ -62,6 +71,7 @@ def _valid_record(record):
             or not isinstance(record["observed_at"], str)
             or not record["observed_at"].endswith("Z")
             or len(record["observed_at"]) > 32
+            or not _utc_observed_at(record["observed_at"])
             or not isinstance(record["snapshot_id"], str)
             or not 1 <= len(record["snapshot_id"]) <= 128
             or any(not isinstance(record[k], str) or SHA256.fullmatch(record[k]) is None
@@ -73,7 +83,7 @@ def _valid_record(record):
 
 def verify_runner_receipts(receipts: list, trusted_runner_keys: dict,
                            resolution: dict, human_records: list,
-                           evidence_blobs: dict, *, expected_commit: str) -> dict:
+                           evidence_blobs: dict, *, expected_commit: str, expected_repository: str) -> dict:
     """Verify signer-role separation, canonical signatures and matching logs.
 
     A good runner signature raises evidence integrity but is not an OIDC-based
@@ -84,7 +94,9 @@ def verify_runner_receipts(receipts: list, trusted_runner_keys: dict,
             or not 1 <= len(trusted_runner_keys) <= 64
             or not isinstance(resolution, dict) or not isinstance(human_records, list)
             or not isinstance(evidence_blobs, dict)
-            or not isinstance(expected_commit, str) or SHA1.fullmatch(expected_commit) is None):
+            or not isinstance(expected_commit, str) or SHA1.fullmatch(expected_commit) is None
+            or not isinstance(expected_repository, str)
+            or REPO.fullmatch(expected_repository) is None):
         raise HumanVerificationError("Runner authenticity inputs and pinned commit required")
     try:
         from cryptography.exceptions import InvalidSignature
@@ -112,7 +124,8 @@ def verify_runner_receipts(receipts: list, trusted_runner_keys: dict,
             raise HumanVerificationError("Runner signing identity is not independently trusted")
         if (record["snapshot_id"] != resolution.get("snapshot_id")
                 or record["patch_sha256"] != resolution.get("patch_sha256")
-                or record["commit_sha"] != expected_commit):
+                or record["commit_sha"] != expected_commit
+                or record["repository"] != expected_repository):
             raise HumanVerificationError("Runner receipt references wrong source or commit")
         identity = (record["run_id"], record["run_attempt"], record["job_id"],
                     record["test_id"], record["log_sha256"])
