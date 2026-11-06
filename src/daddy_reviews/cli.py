@@ -35,7 +35,8 @@ from .context_cache import ContextCacheError
 from .investigation import InvestigationError, InvestigationSession, ToolRequest, TOOLS
 from .investigative_agents import investigate_with_specialists, local_investigation_provider
 from .investigation_eval import ReplayError, read_replay_dataset, read_replay_report, evaluate_replay, compare_replay
-from .operator_artifacts import load_operator_inputs
+from .operator_artifacts import load_operator_inputs, read_operator_json, MAX_TRUST_BYTES
+from .ci_runner_receipts import verify_runner_receipts
 from .human_resolution import adjudicate_human_verification
 from .human_attestation import HumanVerificationError
 
@@ -107,6 +108,10 @@ def main(argv=None):
     parser.add_argument('--challenge-file',help='Optional R8.04b independent challenge JSON')
     parser.add_argument('--human-min-reviewers',type=int,default=2,
                         help='Required distinct trusted human reviewers, 2..4')
+    parser.add_argument('--ci-receipts-file',help='Optional signed CI runner receipts JSON')
+    parser.add_argument('--ci-runner-keys-file',help='Operator-owned CI runner public-key registry JSON')
+    parser.add_argument('--ci-expected-repo',help='Pinned owner/repo for runner receipt validation')
+    parser.add_argument('--ci-expected-commit',help='Pinned 40-character Git commit for runner receipts')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -139,6 +144,19 @@ def main(argv=None):
             )
             data=adjudicate_human_verification(root,**inputs,
                                               min_reviewers=args.human_min_reviewers)
+            ci_flags=(args.ci_receipts_file,args.ci_runner_keys_file,
+                      args.ci_expected_repo,args.ci_expected_commit)
+            if any(ci_flags):
+                if not all(ci_flags):
+                    raise HumanVerificationError(
+                        'CI runner verification requires --ci-receipts-file, --ci-runner-keys-file, --ci-expected-repo and --ci-expected-commit')
+                runner_receipts=read_operator_json(Path(args.ci_receipts_file))
+                runner_trust=read_operator_json(Path(args.ci_runner_keys_file),
+                                                max_bytes=MAX_TRUST_BYTES, protected=True)
+                data['ci_runner_provenance']=verify_runner_receipts(
+                    runner_receipts,runner_trust,data,inputs['attestations'],
+                    inputs['evidence_blobs'],expected_commit=args.ci_expected_commit,
+                    expected_repository=args.ci_expected_repo)
         except (HumanVerificationError,AgentRuntimeError,OSError,ValueError) as exc:
             parser.error(str(exc))
     elif args.command=='investigation-replay':
@@ -408,6 +426,8 @@ def main(argv=None):
         raise SystemExit(2)
     if args.command=='investigation-compare' and data['status'] == 'regression':
         raise SystemExit(2)
-    if args.command=='human-verify' and data['status'] != 'human_attested_resolution':
+    if args.command=='human-verify' and (data['status'] != 'human_attested_resolution'
+            or ('ci_runner_provenance' in data
+                and data['ci_runner_provenance']['status'] != 'runner_key_verified')):
         raise SystemExit(2)
 if __name__=='__main__':main()
