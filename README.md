@@ -64,7 +64,9 @@ python -m pip install -e '.[verification]'
 
 Use the developer APIs in `daddy_reviews.verification_queue`, `daddy_reviews.independent_challenge` and `daddy_reviews.human_resolution`. These do not run repository test commands, create signatures, publish GitHub reviews, or block merges. There is no R8.04 CLI yet. Signatures establish key-controlled human authorization; logs are integrity-checked from caller-supplied bytes, **not independently verified CI execution**.
 
-See [R8.04a queue](docs/R8_VERIFICATION_QUEUE.md), [R8.04b challenge](docs/R8_INDEPENDENT_CHALLENGE.md), and [R8.04c human attestation](docs/R8_HUMAN_VERIFICATION.md). R8.04d operator integration and real-world evaluation remain open.
+**R8.04d.01–d.02 delivered:** the offline `human-verify` CLI safely ingests explicit human attestation files and optionally checks independently enrolled CI-runner Ed25519 signatures bound to the same source and test-log bytes. Runner signatures are **not GitHub OIDC verification or proof a workflow executed**. Use `daddy-reviews human-verify --help` for required flags.
+
+See [R8.04a queue](docs/R8_VERIFICATION_QUEUE.md), [R8.04b challenge](docs/R8_INDEPENDENT_CHALLENGE.md), [R8.04c human attestation](docs/R8_HUMAN_VERIFICATION.md), and [R8.04d operator workflow](docs/R8_OPERATOR_WORKFLOW.md). Real-world labeled evaluation and independently verifiable hosted-CI attestation remain open.
 
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
 
