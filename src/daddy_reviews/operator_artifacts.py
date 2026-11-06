@@ -45,7 +45,8 @@ def _safe_regular_read(path: Path, max_bytes: int, *, protected: bool = False) -
     for entry in (target, *target.parents):
         if entry.is_symlink():
             raise HumanVerificationError("Symlinked operator input or parent rejected")
-    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    # O_NONBLOCK prevents an attacker-owned FIFO from hanging before fstat.
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0)
     if not hasattr(os, "O_NOFOLLOW"):
         raise HumanVerificationError("No-follow input reads are required")
     flags |= os.O_NOFOLLOW
