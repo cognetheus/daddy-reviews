@@ -212,4 +212,12 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Added hostile-path/forged-JSON tests, real signed end-to-end CLI and runner authenticity regressions, and three-version CI gate.
 - See [R8.04d operator workflow and trust limits](R8_OPERATOR_WORKFLOW.md).
 
-**Next: R8.04d.03** — Human-labeled conflict and false-positive/false-negative evaluation with real independently adjudicated repositories, followed by actual hosted CI artifact attestation verification. R8.04 is not fully complete.
+### R8.04d.03 — Bounded human-resolution evaluation and paired regression (delivered infrastructure)
+
+- Added read-only `human-resolution-eval` and `human-resolution-compare` CLI commands for bounded, source-identity-paired datasets (up to 200 cases) and self-declared independently labeled outcomes.
+- Tracks true positives, false alarms, confirmed missed defects, unresolved known defects, human/model conflicts, coverage-adjusted recall, per-tier metrics and regression thresholds; comparison refuses changed labels/source identities.
+- Added ten deliberately synthetic scenarios and CI smoke/regression cases. Human-label metadata and copied resolution JSON are **not re-cryptographically authenticated** by this evaluator; the corpus cannot support production quality claims.
+- No evaluation score permits GitHub publication, merge blocking or reviewer promotion.
+- See [R8.04d.03 human resolution scoring](R8_HUMAN_QUALITY.md).
+
+**R8.04 remains an engineering preview, not a validated production review system.** Remaining external work: genuine GitHub/Sigstore artifact attestation verification and blinded, independently adjudicated real-repository case collection with authenticated source/label provenance. Passing synthetic fixtures is not sufficient for empirical reviewer-quality claims.
