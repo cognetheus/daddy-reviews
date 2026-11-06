@@ -37,13 +37,14 @@ from .investigative_agents import investigate_with_specialists, local_investigat
 from .investigation_eval import ReplayError, read_replay_dataset, read_replay_report, evaluate_replay, compare_replay
 from .operator_artifacts import load_operator_inputs, read_operator_json, MAX_TRUST_BYTES
 from .ci_runner_receipts import verify_runner_receipts
+from .human_quality import HumanQualityError, read_resolution_dataset, evaluate_human_resolutions, compare_human_resolutions
 from .human_resolution import adjudicate_human_verification
 from .human_attestation import HumanVerificationError
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -112,6 +113,9 @@ def main(argv=None):
     parser.add_argument('--ci-runner-keys-file',help='Operator-owned CI runner public-key registry JSON')
     parser.add_argument('--ci-expected-repo',help='Pinned owner/repo for runner receipt validation')
     parser.add_argument('--ci-expected-commit',help='Pinned 40-character Git commit for runner receipts')
+    parser.add_argument('--resolution-dataset',help='Labeled offline human resolution evaluation cases')
+    parser.add_argument('--min-resolution-cases',type=int,default=20,
+                        help='Evaluation comparison size reporting threshold')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -128,7 +132,24 @@ def main(argv=None):
         parser.error('--allow-tool is only supported by investigate and ai-investigate')
     if args.record_model_turns and args.command != 'ai-investigate':
         parser.error('--record-model-turns is only supported by ai-investigate')
-    if args.command=='human-verify':
+    if args.command=='human-resolution-eval':
+        if not args.resolution_dataset:
+            parser.error('human-resolution-eval requires --resolution-dataset')
+        try:
+            data=evaluate_human_resolutions(read_resolution_dataset(Path(args.resolution_dataset)))
+        except (HumanQualityError,HumanVerificationError,OSError,UnicodeError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='human-resolution-compare':
+        if not args.baseline_dataset or not args.candidate_dataset:
+            parser.error('human-resolution-compare requires --baseline-dataset and --candidate-dataset')
+        try:
+            data=compare_human_resolutions(
+                read_resolution_dataset(Path(args.baseline_dataset)),
+                read_resolution_dataset(Path(args.candidate_dataset)),
+                min_cases=args.min_resolution_cases)
+        except (HumanQualityError,HumanVerificationError,OSError,UnicodeError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='human-verify':
         if not all((args.diff_file,args.report_file,args.attestations_file,
                     args.trusted_keys_file,args.evidence_dir)):
             parser.error('human-verify requires --diff-file, --report-file, --attestations-file, --trusted-keys-file and --evidence-dir')
@@ -425,6 +446,8 @@ def main(argv=None):
     if args.command=='investigation-replay' and data['status'] != 'evaluated':
         raise SystemExit(2)
     if args.command=='investigation-compare' and data['status'] == 'regression':
+        raise SystemExit(2)
+    if args.command=='human-resolution-compare' and data['status'] == 'regression':
         raise SystemExit(2)
     if args.command=='human-verify' and (data['status'] != 'human_attested_resolution'
             or ('ci_runner_provenance' in data
