@@ -174,6 +174,15 @@ def test_safe_log_ingestion_checks_digest_and_rejects_symlink(tmp_path):
         read_test_logs(folder, attestations)
 
 
+def test_fifo_artifact_is_refused_without_blocking(tmp_path):
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("FIFO unsupported on this platform")
+    pipe = tmp_path / "untrusted.json"
+    os.mkfifo(pipe)
+    with pytest.raises(HumanVerificationError):
+        read_operator_json(pipe)
+
+
 def test_unbounded_inputs_fail_closed(tmp_path):
     file = tmp_path / "oversized.json"
     file.write_text("x" * 100)
