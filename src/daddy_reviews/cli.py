@@ -35,11 +35,14 @@ from .context_cache import ContextCacheError
 from .investigation import InvestigationError, InvestigationSession, ToolRequest, TOOLS
 from .investigative_agents import investigate_with_specialists, local_investigation_provider
 from .investigation_eval import ReplayError, read_replay_dataset, read_replay_report, evaluate_replay, compare_replay
+from .operator_artifacts import load_operator_inputs
+from .human_resolution import adjudicate_human_verification
+from .human_attestation import HumanVerificationError
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -98,6 +101,12 @@ def main(argv=None):
     parser.add_argument('--candidate-replay',help='Candidate investigation replay result JSON')
     parser.add_argument('--min-replay-cases',type=int,default=20,
                         help='Minimum human-labeled cases before evaluation can support promotion')
+    parser.add_argument('--attestations-file',help='Explicit signed human verification records JSON')
+    parser.add_argument('--trusted-keys-file',help='Host-managed trusted Ed25519 human registry JSON')
+    parser.add_argument('--evidence-dir',help='Local directory of SHA-256-named test logs')
+    parser.add_argument('--challenge-file',help='Optional R8.04b independent challenge JSON')
+    parser.add_argument('--human-min-reviewers',type=int,default=2,
+                        help='Required distinct trusted human reviewers, 2..4')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -114,7 +123,25 @@ def main(argv=None):
         parser.error('--allow-tool is only supported by investigate and ai-investigate')
     if args.record_model_turns and args.command != 'ai-investigate':
         parser.error('--record-model-turns is only supported by ai-investigate')
-    if args.command=='investigation-replay':
+    if args.command=='human-verify':
+        if not all((args.diff_file,args.report_file,args.attestations_file,
+                    args.trusted_keys_file,args.evidence_dir)):
+            parser.error('human-verify requires --diff-file, --report-file, --attestations-file, --trusted-keys-file and --evidence-dir')
+        if not 2 <= args.human_min_reviewers <= 4:
+            parser.error('--human-min-reviewers must be 2..4')
+        try:
+            inputs=load_operator_inputs(
+                patch_file=Path(args.diff_file),report_file=Path(args.report_file),
+                attestations_file=Path(args.attestations_file),
+                trust_keys_file=Path(args.trusted_keys_file),
+                evidence_dir=Path(args.evidence_dir),
+                challenge_file=Path(args.challenge_file) if args.challenge_file else None,
+            )
+            data=adjudicate_human_verification(root,**inputs,
+                                              min_reviewers=args.human_min_reviewers)
+        except (HumanVerificationError,AgentRuntimeError,OSError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='investigation-replay':
         if not args.replay_dataset:
             parser.error('investigation-replay needs --replay-dataset FILE')
         try:
@@ -380,5 +407,7 @@ def main(argv=None):
     if args.command=='investigation-replay' and data['status'] != 'evaluated':
         raise SystemExit(2)
     if args.command=='investigation-compare' and data['status'] == 'regression':
+        raise SystemExit(2)
+    if args.command=='human-verify' and data['status'] != 'human_attested_resolution':
         raise SystemExit(2)
 if __name__=='__main__':main()
