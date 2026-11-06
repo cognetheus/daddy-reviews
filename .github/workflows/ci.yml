@@ -74,6 +74,8 @@ jobs:
         run: pytest -q tests/test_investigation.py
       - name: Require specialist agent tool-call harness and citation regressions
         run: pytest -q tests/test_investigative_agents.py
+      - name: Require read-only operator input and signed runner receipt regressions
+        run: pytest -q tests/test_operator_artifacts.py tests/test_ci_runner_receipts.py
       - name: Require signed human attestation and independent challenge conflict regressions
         run: pytest -q tests/test_human_resolution.py tests/test_verification_queue.py tests/test_independent_challenge.py
       - name: Require replay, human-label gate and paired-regression scenarios
