@@ -59,6 +59,6 @@ A CI validation that does not cover every human-attested test returns `incomplet
 
 ## Deliberate non-goals and next phase
 
-R8.04d.01–d.02 are secure operator plumbing and provenance *claims*. R8.04d.03 must add blinded, independently adjudicated human-label calibration for false-positive/false-negative and conflict resolution; this cannot be replaced by self-declared synthetic metrics. A subsequent integrity extension must verify genuine hosted-CI attestations (platform identity and signing chains) if the system is to claim externally verifiable job execution.
+R8.04d.01–d.02 implement secure operator plumbing and provenance *claims*. R8.04d.03 now provides an offline regression-scoring engine and **synthetic**, not empirically validated, labeled examples; see [human-resolution quality evaluation](R8_HUMAN_QUALITY.md). A subsequent integrity extension must verify genuine hosted-CI attestations (platform identity and signing chains) before this project can claim externally verifiable job execution. Independently collected real repository labels remain an external prerequisite.
 
 See [human attestations](R8_HUMAN_VERIFICATION.md) and [independent challenge](R8_INDEPENDENT_CHALLENGE.md).
