@@ -74,6 +74,22 @@ jobs:
         run: pytest -q tests/test_investigation.py
       - name: Require specialist agent tool-call harness and citation regressions
         run: pytest -q tests/test_investigative_agents.py
+      - name: Require labeled human-resolution false-alarm and missed-defect regression scoring
+        run: pytest -q tests/test_human_quality.py
+      - name: Smoke-test synthetic human outcome regression gate
+        run: |
+          python -m daddy_reviews.cli human-resolution-eval --resolution-dataset evals/human_resolution_synthetic.json > /tmp/daddy-human-resolution.json
+          python -m daddy_reviews.cli human-resolution-compare --baseline-dataset evals/human_resolution_synthetic.json --candidate-dataset evals/human_resolution_synthetic.json > /tmp/daddy-human-compare.json
+          python - <<'PY'
+          import json
+          score = json.load(open('/tmp/daddy-human-resolution.json'))
+          compare = json.load(open('/tmp/daddy-human-compare.json'))
+          assert score['metrics']['tp'] == 3 and score['metrics']['fp'] == 1
+          assert score['metrics']['fn'] == 1 and score['metrics']['abstained'] == 3
+          assert score['dataset_kind'] == 'synthetic' and not score['promotion_eligible']
+          assert compare['status'] == 'insufficient_evidence'
+          assert not compare['real_world_accuracy_claim']
+          PY
       - name: Require read-only operator input and signed runner receipt regressions
         run: pytest -q tests/test_operator_artifacts.py tests/test_ci_runner_receipts.py
       - name: Require signed human attestation and independent challenge conflict regressions
