@@ -66,7 +66,9 @@ Use the developer APIs in `daddy_reviews.verification_queue`, `daddy_reviews.ind
 
 **R8.04d.01–d.02 delivered:** the offline `human-verify` CLI safely ingests explicit human attestation files and optionally checks independently enrolled CI-runner Ed25519 signatures bound to the same source and test-log bytes. Runner signatures are **not GitHub OIDC verification or proof a workflow executed**. Use `daddy-reviews human-verify --help` for required flags.
 
-See [R8.04a queue](docs/R8_VERIFICATION_QUEUE.md), [R8.04b challenge](docs/R8_INDEPENDENT_CHALLENGE.md), [R8.04c human attestation](docs/R8_HUMAN_VERIFICATION.md), and [R8.04d operator workflow](docs/R8_OPERATOR_WORKFLOW.md). Real-world labeled evaluation and independently verifiable hosted-CI attestation remain open.
+**R8.04d.03 delivered:** offline `human-resolution-eval` and `human-resolution-compare` CLIs report false alarms, confirmed misses, unresolved defects, and human/model conflicts. The bundled ten-case corpus is synthetic and cannot support empirical accuracy claims.
+
+See [R8.04a queue](docs/R8_VERIFICATION_QUEUE.md), [R8.04b challenge](docs/R8_INDEPENDENT_CHALLENGE.md), [R8.04c human attestation](docs/R8_HUMAN_VERIFICATION.md), [R8.04d operator workflow](docs/R8_OPERATOR_WORKFLOW.md), and [R8.04d resolution evaluation](docs/R8_HUMAN_QUALITY.md). Real-world independently labeled accuracy and genuine hosted-CI attestation verification remain open.
 
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
 
