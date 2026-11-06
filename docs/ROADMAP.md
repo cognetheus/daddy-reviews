@@ -204,4 +204,12 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Added adversarial signed-artifact tests and three-version Python CI gates; the `cryptography` dependency is optional via `.[verification]`.
 - See [R8.04c signed human verification](R8_HUMAN_VERIFICATION.md). This is a Python developer API, not CLI or independently attested CI provenance.
 
-**Next: R8.04d** — Secure artifact ingestion/operator CLI, stronger attestation of CI execution, and calibrated human-labeled conflict/false-positive evaluation. R8.04 remains incomplete until these trust and accuracy requirements are met.
+### R8.04d.01–d.02 — Operator ingestion and independent runner signature checks (delivered incremental APIs)
+
+- Added explicit `human-verify` CLI for offline human attestation verification: bounded regular-file inputs, symlink rejection, duplicate-key/NaN rejection, separately operator-owned trusted-key JSON, and SHA-256-named test logs. Exit 2 for unresolved or invalid cases.
+- Added optional signed CI-runner receipts with a **separate enrolled Ed25519 runner key**, pinned repository/commit, source snapshot and patch digest, matching human-signed test ID/outcome/log bytes, and complete-coverage gate. Runner signatures never change merge/posting permissions.
+- This verifies an enrolled runner key's signature, **not** GitHub OIDC/platform identity, CI workflow execution or transparency-log provenance. We must not call it a verified hosted CI run.
+- Added hostile-path/forged-JSON tests, real signed end-to-end CLI and runner authenticity regressions, and three-version CI gate.
+- See [R8.04d operator workflow and trust limits](R8_OPERATOR_WORKFLOW.md).
+
+**Next: R8.04d.03** — Human-labeled conflict and false-positive/false-negative evaluation with real independently adjudicated repositories, followed by actual hosted CI artifact attestation verification. R8.04 is not fully complete.
