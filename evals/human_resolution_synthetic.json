@@ -1,0 +1,323 @@
+{
+  "format": "daddy-reviews-human-resolution-eval-v1",
+  "dataset_kind": "synthetic",
+  "cases": [
+    {
+      "id": "s01-confirmed-defect",
+      "tier": "full",
+      "label": "defect",
+      "label_metadata": {
+        "reviewer_id": "synthetic-evaluator",
+        "reviewed_at": "2026-11-06",
+        "protocol": "independent-human-label-v1",
+        "label_kind": "synthetic"
+      },
+      "candidate_id": "synthetic-candidate-1",
+      "snapshot_id": "synthetic-snapshot-1",
+      "patch_sha256": "0101010101010101010101010101010101010101010101010101010101010101",
+      "resolution": {
+        "format": "daddy-reviews-human-resolution-v1",
+        "snapshot_id": "synthetic-snapshot-1",
+        "patch_sha256": "0101010101010101010101010101010101010101010101010101010101010101",
+        "status": "human_attested_resolution",
+        "decisions": [
+          {
+            "candidate_id": "synthetic-candidate-1",
+            "status": "human_attested_confirmed",
+            "challenge_verdict": "refuted",
+            "verified_human_receipts": 2,
+            "independent_human_reviewers": [
+              "synthetic-human-a",
+              "synthetic-human-b"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "s02-confirmed-defect",
+      "tier": "lite",
+      "label": "defect",
+      "label_metadata": {
+        "reviewer_id": "synthetic-evaluator",
+        "reviewed_at": "2026-11-06",
+        "protocol": "independent-human-label-v1",
+        "label_kind": "synthetic"
+      },
+      "candidate_id": "synthetic-candidate-2",
+      "snapshot_id": "synthetic-snapshot-2",
+      "patch_sha256": "0202020202020202020202020202020202020202020202020202020202020202",
+      "resolution": {
+        "format": "daddy-reviews-human-resolution-v1",
+        "snapshot_id": "synthetic-snapshot-2",
+        "patch_sha256": "0202020202020202020202020202020202020202020202020202020202020202",
+        "status": "human_attested_resolution",
+        "decisions": [
+          {
+            "candidate_id": "synthetic-candidate-2",
+            "status": "human_attested_confirmed",
+            "challenge_verdict": "supported",
+            "verified_human_receipts": 2,
+            "independent_human_reviewers": [
+              "synthetic-human-a",
+              "synthetic-human-b"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "s03-false-alarm",
+      "tier": "full",
+      "label": "clean",
+      "label_metadata": {
+        "reviewer_id": "synthetic-evaluator",
+        "reviewed_at": "2026-11-06",
+        "protocol": "independent-human-label-v1",
+        "label_kind": "synthetic"
+      },
+      "candidate_id": "synthetic-candidate-3",
+      "snapshot_id": "synthetic-snapshot-3",
+      "patch_sha256": "0303030303030303030303030303030303030303030303030303030303030303",
+      "resolution": {
+        "format": "daddy-reviews-human-resolution-v1",
+        "snapshot_id": "synthetic-snapshot-3",
+        "patch_sha256": "0303030303030303030303030303030303030303030303030303030303030303",
+        "status": "human_attested_resolution",
+        "decisions": [
+          {
+            "candidate_id": "synthetic-candidate-3",
+            "status": "human_attested_confirmed",
+            "challenge_verdict": "supported",
+            "verified_human_receipts": 2,
+            "independent_human_reviewers": [
+              "synthetic-human-a",
+              "synthetic-human-b"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "s04-missed-defect",
+      "tier": "full",
+      "label": "defect",
+      "label_metadata": {
+        "reviewer_id": "synthetic-evaluator",
+        "reviewed_at": "2026-11-06",
+        "protocol": "independent-human-label-v1",
+        "label_kind": "synthetic"
+      },
+      "candidate_id": "synthetic-candidate-4",
+      "snapshot_id": "synthetic-snapshot-4",
+      "patch_sha256": "0404040404040404040404040404040404040404040404040404040404040404",
+      "resolution": {
+        "format": "daddy-reviews-human-resolution-v1",
+        "snapshot_id": "synthetic-snapshot-4",
+        "patch_sha256": "0404040404040404040404040404040404040404040404040404040404040404",
+        "status": "human_attested_resolution",
+        "decisions": [
+          {
+            "candidate_id": "synthetic-candidate-4",
+            "status": "human_attested_rejected",
+            "challenge_verdict": "refuted",
+            "verified_human_receipts": 2,
+            "independent_human_reviewers": [
+              "synthetic-human-a",
+              "synthetic-human-b"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "s05-correct-rejection",
+      "tier": "trivial",
+      "label": "clean",
+      "label_metadata": {
+        "reviewer_id": "synthetic-evaluator",
+        "reviewed_at": "2026-11-06",
+        "protocol": "independent-human-label-v1",
+        "label_kind": "synthetic"
+      },
+      "candidate_id": "synthetic-candidate-5",
+      "snapshot_id": "synthetic-snapshot-5",
+      "patch_sha256": "0505050505050505050505050505050505050505050505050505050505050505",
+      "resolution": {
+        "format": "daddy-reviews-human-resolution-v1",
+        "snapshot_id": "synthetic-snapshot-5",
+        "patch_sha256": "0505050505050505050505050505050505050505050505050505050505050505",
+        "status": "human_attested_resolution",
+        "decisions": [
+          {
+            "candidate_id": "synthetic-candidate-5",
+            "status": "human_attested_rejected",
+            "challenge_verdict": null,
+            "verified_human_receipts": 2,
+            "independent_human_reviewers": [
+              "synthetic-human-a",
+              "synthetic-human-b"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "s06-correct-rejection",
+      "tier": "lite",
+      "label": "clean",
+      "label_metadata": {
+        "reviewer_id": "synthetic-evaluator",
+        "reviewed_at": "2026-11-06",
+        "protocol": "independent-human-label-v1",
+        "label_kind": "synthetic"
+      },
+      "candidate_id": "synthetic-candidate-6",
+      "snapshot_id": "synthetic-snapshot-6",
+      "patch_sha256": "0606060606060606060606060606060606060606060606060606060606060606",
+      "resolution": {
+        "format": "daddy-reviews-human-resolution-v1",
+        "snapshot_id": "synthetic-snapshot-6",
+        "patch_sha256": "0606060606060606060606060606060606060606060606060606060606060606",
+        "status": "human_attested_resolution",
+        "decisions": [
+          {
+            "candidate_id": "synthetic-candidate-6",
+            "status": "human_attested_rejected",
+            "challenge_verdict": "refuted",
+            "verified_human_receipts": 2,
+            "independent_human_reviewers": [
+              "synthetic-human-a",
+              "synthetic-human-b"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "s07-human-conflict",
+      "tier": "full",
+      "label": "defect",
+      "label_metadata": {
+        "reviewer_id": "synthetic-evaluator",
+        "reviewed_at": "2026-11-06",
+        "protocol": "independent-human-label-v1",
+        "label_kind": "synthetic"
+      },
+      "candidate_id": "synthetic-candidate-7",
+      "snapshot_id": "synthetic-snapshot-7",
+      "patch_sha256": "0707070707070707070707070707070707070707070707070707070707070707",
+      "resolution": {
+        "format": "daddy-reviews-human-resolution-v1",
+        "snapshot_id": "synthetic-snapshot-7",
+        "patch_sha256": "0707070707070707070707070707070707070707070707070707070707070707",
+        "status": "human_attention_required",
+        "decisions": [
+          {
+            "candidate_id": "synthetic-candidate-7",
+            "status": "conflicting_human_attestations",
+            "challenge_verdict": "uncertain",
+            "verified_human_receipts": 0,
+            "independent_human_reviewers": [
+              "synthetic-human-a"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "s08-model-conflict",
+      "tier": "lite",
+      "label": "clean",
+      "label_metadata": {
+        "reviewer_id": "synthetic-evaluator",
+        "reviewed_at": "2026-11-06",
+        "protocol": "independent-human-label-v1",
+        "label_kind": "synthetic"
+      },
+      "candidate_id": "synthetic-candidate-8",
+      "snapshot_id": "synthetic-snapshot-8",
+      "patch_sha256": "0808080808080808080808080808080808080808080808080808080808080808",
+      "resolution": {
+        "format": "daddy-reviews-human-resolution-v1",
+        "snapshot_id": "synthetic-snapshot-8",
+        "patch_sha256": "0808080808080808080808080808080808080808080808080808080808080808",
+        "status": "human_attention_required",
+        "decisions": [
+          {
+            "candidate_id": "synthetic-candidate-8",
+            "status": "model_disagreement_unacknowledged",
+            "challenge_verdict": "refuted",
+            "verified_human_receipts": 0,
+            "independent_human_reviewers": [
+              "synthetic-human-a"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "s09-unresolved-defect",
+      "tier": "full",
+      "label": "defect",
+      "label_metadata": {
+        "reviewer_id": "synthetic-evaluator",
+        "reviewed_at": "2026-11-06",
+        "protocol": "independent-human-label-v1",
+        "label_kind": "synthetic"
+      },
+      "candidate_id": "synthetic-candidate-9",
+      "snapshot_id": "synthetic-snapshot-9",
+      "patch_sha256": "0909090909090909090909090909090909090909090909090909090909090909",
+      "resolution": {
+        "format": "daddy-reviews-human-resolution-v1",
+        "snapshot_id": "synthetic-snapshot-9",
+        "patch_sha256": "0909090909090909090909090909090909090909090909090909090909090909",
+        "status": "human_attention_required",
+        "decisions": [
+          {
+            "candidate_id": "synthetic-candidate-9",
+            "status": "insufficient_independent_human_evidence",
+            "challenge_verdict": null,
+            "verified_human_receipts": 1,
+            "independent_human_reviewers": [
+              "synthetic-human-a"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "s10-confirmed-defect",
+      "tier": "full",
+      "label": "defect",
+      "label_metadata": {
+        "reviewer_id": "synthetic-evaluator",
+        "reviewed_at": "2026-11-06",
+        "protocol": "independent-human-label-v1",
+        "label_kind": "synthetic"
+      },
+      "candidate_id": "synthetic-candidate-10",
+      "snapshot_id": "synthetic-snapshot-10",
+      "patch_sha256": "1010101010101010101010101010101010101010101010101010101010101010",
+      "resolution": {
+        "format": "daddy-reviews-human-resolution-v1",
+        "snapshot_id": "synthetic-snapshot-10",
+        "patch_sha256": "1010101010101010101010101010101010101010101010101010101010101010",
+        "status": "human_attested_resolution",
+        "decisions": [
+          {
+            "candidate_id": "synthetic-candidate-10",
+            "status": "human_attested_confirmed",
+            "challenge_verdict": "supported",
+            "verified_human_receipts": 2,
+            "independent_human_reviewers": [
+              "synthetic-human-a",
+              "synthetic-human-b"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
