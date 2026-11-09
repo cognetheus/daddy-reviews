@@ -238,4 +238,18 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - A GitHub artifact signature proves origin and integrity of the **supervisor's output**, not externally that all test assertions or source code were honest. Run ID, process timestamps and result bytes are self-reported by the restricted job. Protected workflows/branch, action SHA pinning, reproducible hermetic test dependencies and independent GitHub job/status checks remain necessary.
 - See [R8.04f supervised test execution](R8_SUPERVISED_TEST_EXECUTION.md).
 
-**Remaining release gates:** independently check GitHub Jobs API status and protected workflow identity, collect a blinded and independently adjudicated *real repository* defect corpus, and measure empirical false positives/misses. R8.04 is an engineering preview; production model correctness and automatic merge safety remain unestablished.
+### R8.04g.01 — Independent GitHub completed run/job cross-check (delivered)
+
+- `github-jobs-verify` CLI now authenticates live GitHub REST responses using a SHA-256-pinned CLI and explicit read token. It checks exact source SHA, immutable numeric repository ID, workflow path, completed run attempt and **all three named successful jobs**, including critical steps and hosted-runner labels.
+- The `attested-test-verify --check-live-github-jobs` opt-in gate joins the real authenticated GitHub/Sigstore artifact with independent post-completion GitHub job status in one host execution. No self-reported JSON can authorize the host result.
+- A separate read-only `workflow_run` job validates the real completed attested workflow after it finishes, with no OIDC, no GitHub writes and no repo test execution. The real postrun verification **passed** at [Actions run 42684613839](https://github.com/cognetheus/daddy-reviews/actions/runs/42684613839), checking attested run [42684500143](https://github.com/cognetheus/daddy-reviews/actions/runs/42684500143).
+- These are live GitHub API status claims over authenticated TLS, **not cryptographically signed job-status events**, proof of protected branch configuration, or independent test truth.
+
+### R8.04g.02 — Authenticated independent defect-label provenance (delivered infrastructure)
+
+- Added `human-label-audit` CLI and `ground_truth_labels.py` Ed25519 protocol for separate ground-truth adjudicator keys, signed case/source/label/metadata, bounded evidence bytes and at least two distinct enrolled reviewer identities per case.
+- Rejects label tampering, signer impersonation, missing evidence, duplicate reviewers, revoked/incorrectly scoped keys and unsupported synthetic-to-human promotions.
+- Output stays advisory: no automatic model promotion, defect truth claim, PR publication, or merge action. Ten signed-label *tests* use synthetic evidence and generated test keys; no genuine repository human-label corpus has been collected.
+- See [R8.04g GitHub job checks and signed labels](R8_GITHUB_JOBS_AND_LABELS.md). The CI matrix tests both new interfaces.
+
+**Remaining release gates:** protected/immutably pinned reviewer workflow and builder, evidence-backed independently adjudicated *real-repository* case sampling including defects the model did not nominate, empirically measured false positives/omissions, and deliberate human-only release enforcement. Authenticated GitHub run status and human signatures do not by themselves prove a test or a label is factually correct.
