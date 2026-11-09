@@ -38,13 +38,14 @@ from .investigation_eval import ReplayError, read_replay_dataset, read_replay_re
 from .operator_artifacts import load_operator_inputs, read_operator_json, MAX_TRUST_BYTES
 from .ci_runner_receipts import verify_runner_receipts
 from .human_quality import HumanQualityError, read_resolution_dataset, evaluate_human_resolutions, compare_human_resolutions
+from .github_attestation import verify_github_attestation_offline
 from .human_resolution import adjudicate_human_verification
 from .human_attestation import HumanVerificationError
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -116,6 +117,16 @@ def main(argv=None):
     parser.add_argument('--resolution-dataset',help='Labeled offline human resolution evaluation cases')
     parser.add_argument('--min-resolution-cases',type=int,default=20,
                         help='Evaluation comparison size reporting threshold')
+    parser.add_argument('--attested-artifact-file',help='Local artifact to verify (<=64 KiB)')
+    parser.add_argument('--attestation-bundle-file',help='Offline GitHub/Sigstore bundle JSONL')
+    parser.add_argument('--sigstore-trusted-root-file',help='Offline trusted-root JSONL, operator-controlled')
+    parser.add_argument('--gh-binary',help='Absolute path to trusted GitHub CLI executable')
+    parser.add_argument('--gh-binary-sha256',help='Pinned SHA-256 of GitHub CLI executable')
+    parser.add_argument('--attestation-repo',help='Pinned owner/repository')
+    parser.add_argument('--attestation-repo-id',type=int,help='Pinned numeric GitHub repository ID')
+    parser.add_argument('--attestation-commit',help='Pinned full Git source commit hash')
+    parser.add_argument('--attestation-signer-workflow',help='Pinned owner/repo/.github/workflows/file.yml')
+    parser.add_argument('--attestation-artifact-sha256',help='Pinned SHA-256 of expected test evidence bytes')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -132,7 +143,29 @@ def main(argv=None):
         parser.error('--allow-tool is only supported by investigate and ai-investigate')
     if args.record_model_turns and args.command != 'ai-investigate':
         parser.error('--record-model-turns is only supported by ai-investigate')
-    if args.command=='human-resolution-eval':
+    if args.command=='github-attestation-verify':
+        required=(args.attested_artifact_file,args.attestation_bundle_file,
+                  args.sigstore_trusted_root_file,args.gh_binary,args.gh_binary_sha256,
+                  args.attestation_repo,args.attestation_repo_id,args.attestation_commit,
+                  args.attestation_signer_workflow,args.attestation_artifact_sha256)
+        if not all(required):
+            parser.error('github-attestation-verify requires explicit artifact, bundle, trusted root, pinned gh binary hash, repository ID, commit, signer workflow and artifact SHA-256')
+        try:
+            data=verify_github_attestation_offline(
+                artifact_file=Path(args.attested_artifact_file),
+                bundle_file=Path(args.attestation_bundle_file),
+                trusted_root_file=Path(args.sigstore_trusted_root_file),
+                gh_binary=Path(args.gh_binary),
+                gh_binary_sha256=args.gh_binary_sha256,
+                expected_repo=args.attestation_repo,
+                expected_repo_id=args.attestation_repo_id,
+                expected_commit=args.attestation_commit,
+                signer_workflow=args.attestation_signer_workflow,
+                expected_artifact_sha256=args.attestation_artifact_sha256,
+            )
+        except (HumanVerificationError,OSError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='human-resolution-eval':
         if not args.resolution_dataset:
             parser.error('human-resolution-eval requires --resolution-dataset')
         try:
