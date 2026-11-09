@@ -53,16 +53,16 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
-## R8.04a–c — Evidence-driven human verification (in development)
+## R8.04a–e — Evidence-driven human verification and artifact origin
 
 R8.04 adds a source-bound verification queue, read-only independent counterexample challenge, and an **Ed25519-signed human attestation** workflow. Two separately trusted human identities must attest a decision, and their signatures bind the exact model claim, changed-source hash, patch, and observed test-log digest. Opposing AI challenges require explicit signed human acknowledgement. Incomplete reviewers or stale evidence **escalate rather than prove clean code**.
 
 ```bash
-# Only for applications using the Python human-verification API
+# Required for signed human verification APIs and the human-verify CLI
 python -m pip install -e '.[verification]'
 ```
 
-Use the developer APIs in `daddy_reviews.verification_queue`, `daddy_reviews.independent_challenge` and `daddy_reviews.human_resolution`. These do not run repository test commands, create signatures, publish GitHub reviews, or block merges. There is no R8.04 CLI yet. Signatures establish key-controlled human authorization; logs are integrity-checked from caller-supplied bytes, **not independently verified CI execution**.
+Use the developer APIs in `daddy_reviews.verification_queue`, `daddy_reviews.independent_challenge` and `daddy_reviews.human_resolution`. These do not run repository test commands, create signatures, publish GitHub reviews, or block merges. The separate operator CLIs described below are now available. Signatures establish key-controlled human authorization; raw logs alone cannot prove execution. A verified GitHub artifact attestation establishes artifact provenance, not execution truth.
 
 **R8.04d.01–d.02 delivered:** the offline `human-verify` CLI safely ingests explicit human attestation files and optionally checks independently enrolled CI-runner Ed25519 signatures bound to the same source and test-log bytes. Runner signatures are **not GitHub OIDC verification or proof a workflow executed**. Use `daddy-reviews human-verify --help` for required flags.
 
