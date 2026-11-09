@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+# Post-run assurance is deliberately OUTSIDE this workflow: it cannot inspect
+# its final GitHub Actions conclusion until all jobs finish. The separate
+# verify-attested-run-jobs.yml workflow cross-checks this run via GitHub API,
+# with read-only tokens and no OIDC signing privileges.
 jobs:
   run-fixed-suite:
     runs-on: ubuntu-latest
