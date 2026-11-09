@@ -246,3 +246,41 @@ def verify_attested_test_execution(artifact: bytes, verified_origin: dict, **exp
                   "not independently the test execution or factual outcome. "
                   "Protected workflow provenance and independent reviewer checks are required.",
     }
+
+
+def verify_execution_with_github_attestation(*, artifact_file: Path,
+                                              bundle_file: Path,
+                                              trusted_root_file: Path,
+                                              gh_binary: Path,
+                                              gh_binary_sha256: str,
+                                              expected_repo: str,
+                                              expected_repo_id: int,
+                                              expected_commit: str,
+                                              signer_workflow: str,
+                                              expected_artifact_sha256: str,
+                                              expected_run_id: int,
+                                              expected_attempt: int,
+                                              expected_suite_sha256: str) -> dict:
+    """Re-use the authenticated artifact SHA as a single host-side trust step.
+
+    Does not accept model-supplied verified-origin JSON as a source of truth.
+    """
+    from .github_attestation import verify_github_attestation_offline
+    origin = verify_github_attestation_offline(
+        artifact_file=artifact_file, bundle_file=bundle_file,
+        trusted_root_file=trusted_root_file, gh_binary=gh_binary,
+        gh_binary_sha256=gh_binary_sha256, expected_repo=expected_repo,
+        expected_repo_id=expected_repo_id, expected_commit=expected_commit,
+        signer_workflow=signer_workflow,
+        expected_artifact_sha256=expected_artifact_sha256,
+    )
+    artifact = _safe_regular_read(artifact_file, MAX_ARTIFACT)
+    if _sha(artifact) != expected_artifact_sha256:
+        raise HumanVerificationError("Attested execution artifact changed during verification")
+    return verify_attested_test_execution(
+        artifact, origin,
+        expected_repository=expected_repo, expected_commit=expected_commit,
+        expected_workflow=signer_workflow, expected_run_id=expected_run_id,
+        expected_attempt=expected_attempt,
+        expected_suite_sha256=expected_suite_sha256,
+    )
