@@ -74,15 +74,19 @@ def _identity(repo, repo_id, sha, run_id, attempt):
 def _check_run(run, *, repo, repo_id, sha, run_id, attempt):
     repository = run.get("repository")
     head_repository = run.get("head_repository")
-    if (run.get("id") != run_id or run.get("run_attempt") != attempt
+    if (type(run.get("id")) is not int
+            or type(run.get("run_attempt")) is not int
+            or run.get("id") != run_id or run.get("run_attempt") != attempt
             or run.get("head_sha") != sha
             or run.get("status") != "completed"
             or run.get("conclusion") != "success"
             or run.get("event") not in ("push", "workflow_dispatch")
             or not isinstance(repository, dict)
+            or type(repository.get("id")) is not int
             or repository.get("id") != repo_id
             or repository.get("full_name") != repo
             or not isinstance(head_repository, dict)
+            or type(head_repository.get("id")) is not int
             or head_repository.get("id") != repo_id
             or not isinstance(run.get("path"), str)
             or run["path"].split("@", 1)[0] != WORKFLOW
@@ -107,6 +111,8 @@ def _check_jobs(jobs, *, run_id, attempt):
         name, jid = job.get("name"), job.get("id")
         if (name not in JOB_NAMES or name in found
                 or type(jid) is not int or jid <= 0 or jid in ids
+                or type(job.get("run_id")) is not int
+                or type(job.get("run_attempt")) is not int
                 or job.get("run_id") != run_id
                 or job.get("run_attempt") != attempt
                 or job.get("status") != "completed"
