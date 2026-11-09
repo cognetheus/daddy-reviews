@@ -68,7 +68,9 @@ Use the developer APIs in `daddy_reviews.verification_queue`, `daddy_reviews.ind
 
 **R8.04d.03 delivered:** offline `human-resolution-eval` and `human-resolution-compare` CLIs report false alarms, confirmed misses, unresolved defects, and human/model conflicts. The bundled ten-case corpus is synthetic and cannot support empirical accuracy claims.
 
-See [R8.04a queue](docs/R8_VERIFICATION_QUEUE.md), [R8.04b challenge](docs/R8_INDEPENDENT_CHALLENGE.md), [R8.04c human attestation](docs/R8_HUMAN_VERIFICATION.md), [R8.04d operator workflow](docs/R8_OPERATOR_WORKFLOW.md), and [R8.04d resolution evaluation](docs/R8_HUMAN_QUALITY.md). Real-world independently labeled accuracy and genuine hosted-CI attestation verification remain open.
+**R8.04e delivered:** `github-attestation-verify` uses a pinned GitHub CLI binary, offline Sigstore trusted roots and cryptographic OIDC verification for an exact artifact. Policy pins the signer workflow, source commit, immutable numeric repository ID and artifact SHA-256. `human-verify` can also link that authenticated artifact to independently signed human-test receipts. A dedicated GitHub Actions workflow successfully tested **real** OIDC/Sigstore signing, offline verification and tamper rejection. This authenticates artifact origin, **not** whether a test actually ran or passed.
+
+See [R8.04a queue](docs/R8_VERIFICATION_QUEUE.md), [R8.04b challenge](docs/R8_INDEPENDENT_CHALLENGE.md), [R8.04c human attestation](docs/R8_HUMAN_VERIFICATION.md), [R8.04d operator workflow](docs/R8_OPERATOR_WORKFLOW.md), [R8.04d evaluation](docs/R8_HUMAN_QUALITY.md), and [R8.04e GitHub/Sigstore verification](docs/R8_GITHUB_ATTESTATION.md). Real-world independently labeled accuracy and independently controlled test-execution provenance remain open.
 
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
 
