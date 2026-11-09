@@ -60,7 +60,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  sign-and-verify:
+  sign-only:
     needs: run-fixed-suite
     runs-on: ubuntu-latest
     permissions:
@@ -68,45 +68,61 @@ jobs:
       attestations: write
       contents: read
     steps:
+      # This privileged job executes NO repository Python, shell, installer or
+      # reviewed source. Only the approved artifact download and GitHub signer.
+      - name: Download the bounded unprivileged test evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: daddy-supervised-record
+          path: /tmp/daddy-attested-tests
+      - name: Authenticate the artifact with GitHub Actions OIDC
+        uses: actions/attest@v4
+        with:
+          subject-path: /tmp/daddy-attested-tests/supervised.json
+
+  verify-attested:
+    needs: sign-only
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      attestations: read
+    steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install offline verification dependencies (no test execution)
+      - name: Install offline verifier without OIDC signing capability
         run: python -m pip install -e '.[verification]'
-      - name: Download unprivileged job's exact bounded execution artifact
+      - name: Download previously signed test evidence artifact
         uses: actions/download-artifact@v4
         with:
           name: daddy-supervised-record
           path: /tmp/daddy-attested-tests
-      - name: Validate executor schema BEFORE signing
+      - name: Validate executor schema before reading external signatures
         run: |
           set -euo pipefail
           python - <<'PY'
-          import hashlib, json, os
+          import hashlib, os
           from pathlib import Path
           from daddy_reviews.test_execution import inspect_test_execution_artifact
+          assert not os.environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN")
           suite = Path(os.environ["GITHUB_WORKSPACE"]) / "tests/test_human_quality.py"
-          record = inspect_test_execution_artifact(
+          result = inspect_test_execution_artifact(
               Path("/tmp/daddy-attested-tests/supervised.json").read_bytes(),
               expected_repository=os.environ["GITHUB_REPOSITORY"],
               expected_commit=os.environ["GITHUB_SHA"],
-              expected_workflow=os.environ["GITHUB_REPOSITORY"] + "/.github/workflows/attested-test-execution.yml",
+              expected_workflow=os.environ["GITHUB_REPOSITORY"] +
+                  "/.github/workflows/attested-test-execution.yml",
               expected_run_id=int(os.environ["GITHUB_RUN_ID"]),
               expected_attempt=int(os.environ["GITHUB_RUN_ATTEMPT"]),
               expected_suite_sha256=hashlib.sha256(suite.read_bytes()).hexdigest(),
           )
-          assert record["status"] == "supervisor_recorded_passed"
-          assert record["output_complete"]
-          print("Signing job schema-validated the record without executing the suite")
+          assert result["status"] == "supervisor_recorded_passed"
+          print("Unprivileged verification job validated source and process evidence")
           PY
-      - name: Attest validated record with GitHub OIDC
-        uses: actions/attest@v4
-        with:
-          subject-path: /tmp/daddy-attested-tests/supervised.json
-      - name: Download exact Sigstore bundle and trusted root
+      - name: Fetch genuine bundle and trusted roots
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -115,7 +131,7 @@ jobs:
           gh attestation download supervised.json -R "$GITHUB_REPOSITORY"
           gh attestation trusted-root > trusted_root.jsonl
           test "$(find . -maxdepth 1 -name 'sha256:*.jsonl' -type f | wc -l)" -eq 1
-      - name: Verify genuine attestation and supervised record together
+      - name: Verify signed GitHub origin and exact supervisor output
         run: |
           set -euo pipefail
           cd /tmp/daddy-attested-tests
@@ -150,9 +166,9 @@ jobs:
           assert result["test_execution_platform_proven"] is False
           assert result["github_publication"] == result["merge_action"] == "none"
           Path("verified.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
-          print("Authenticated GitHub artifact and fixed-suite supervisor record")
+          print("Authenticated GitHub artifact and supervisor record")
           PY
-      - name: Reject tampered supervisor record
+      - name: Modified execution record must fail closed
         run: |
           set -euo pipefail
           cd /tmp/daddy-attested-tests
@@ -189,7 +205,7 @@ jobs:
           )
           PY
           then
-            echo "Mutated supervisor artifact incorrectly verified" >&2
+            echo "Tampered test evidence incorrectly accepted" >&2
             exit 1
           fi
-          echo "Tampered execution evidence correctly rejected"
+          echo "Tampering rejected"
