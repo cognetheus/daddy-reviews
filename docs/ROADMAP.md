@@ -229,4 +229,13 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - This validates **artifact origin and integrity**, NOT that a test ran truthfully or detected an actual defect. GitHub Actions user-controllable provenance predicates cannot be treated as independently verified test results.
 - See [R8.04e offline GitHub provenance verification](R8_GITHUB_ATTESTATION.md).
 
-**Remaining release gates:** build a trusted-builder test-execution evidence chain and a blinded, independently adjudicated *real repository* defect corpus. R8.04 is implemented through artifact authentication, but production model correctness, actual test results and automatic merge safety are not established.
+### R8.04f — Supervised test execution and OIDC-isolated signing (delivered integration)
+
+- Added a bounded, fixed-suite pytest supervisor that records a real process exit code, output digests, suite hash, source commit, run identity and UTC execution interval in `daddy-reviews-supervised-test-execution-v1` format.
+- Added an offline `attested-test-verify` operator CLI that runs the pinned official GitHub/Sigstore verifier **and** binds the signed artifact to a strict, exact suite/run/source/exit-code contract. Forged or contradictory status, truncated logs and stale source evidence fail closed.
+- Refactored real GitHub Actions integration into **three least-privilege jobs**: test (read-only, no OIDC), sign (only approved download/sign actions, OIDC-capable, no repository source execution), verify (read-only, no OIDC). Test capture itself refuses GitHub/OIDC token-bearing environments. This avoids giving reviewed tests signing credentials.
+- The real three-job integration passed with tampering rejected at commit `26daee8b`; Python 3.10/3.12/3.13 CI includes actual subprocess and operator-CLI regressions. Static tests enforce OIDC job isolation.
+- A GitHub artifact signature proves origin and integrity of the **supervisor's output**, not externally that all test assertions or source code were honest. Run ID, process timestamps and result bytes are self-reported by the restricted job. Protected workflows/branch, action SHA pinning, reproducible hermetic test dependencies and independent GitHub job/status checks remain necessary.
+- See [R8.04f supervised test execution](R8_SUPERVISED_TEST_EXECUTION.md).
+
+**Remaining release gates:** independently check GitHub Jobs API status and protected workflow identity, collect a blinded and independently adjudicated *real repository* defect corpus, and measure empirical false positives/misses. R8.04 is an engineering preview; production model correctness and automatic merge safety remain unestablished.
