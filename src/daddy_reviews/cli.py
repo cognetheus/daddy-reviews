@@ -41,6 +41,8 @@ from .ci_runner_receipts import verify_runner_receipts
 from .human_quality import HumanQualityError, read_resolution_dataset, evaluate_human_resolutions, compare_human_resolutions
 from .github_attestation import verify_github_attestation_offline
 from .github_job_status import verify_live_github_jobs
+from .ground_truth_labels import audit_independently_signed_labels
+from .operator_artifacts import read_test_logs
 from .test_execution import verify_execution_with_github_attestation
 from .human_resolution import adjudicate_human_verification
 from .human_attestation import HumanVerificationError
@@ -48,7 +50,7 @@ from .human_attestation import HumanVerificationError
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -135,6 +137,11 @@ def main(argv=None):
     parser.add_argument('--test-run-attempt',type=int,help='Expected GitHub Actions run attempt')
     parser.add_argument('--check-live-github-jobs',action='store_true',
                         help='After attested-test-verify, independently require completed GitHub run and all three jobs (GH_TOKEN)')
+    parser.add_argument('--label-attestations-file',help='Separately signed independent human defect labels')
+    parser.add_argument('--label-trust-keys-file',help='Operator-owned trusted ground truth Ed25519 keys')
+    parser.add_argument('--label-evidence-dir',help='Directory of independently signed human label evidence bytes')
+    parser.add_argument('--label-min-reviewers',type=int,default=2,
+                        help='Distinct label signers per case, 2..4')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -153,7 +160,27 @@ def main(argv=None):
         parser.error('--record-model-turns is only supported by ai-investigate')
     if args.check_live_github_jobs and args.command != 'attested-test-verify':
         parser.error('--check-live-github-jobs requires attested-test-verify')
-    if args.command=='github-jobs-verify':
+    if args.command=='human-label-audit':
+        if not all((args.resolution_dataset,args.label_attestations_file,
+                    args.label_trust_keys_file,args.label_evidence_dir)):
+            parser.error('human-label-audit needs --resolution-dataset, --label-attestations-file, --label-trust-keys-file and --label-evidence-dir')
+        if not 2 <= args.label_min_reviewers <= 4:
+            parser.error('--label-min-reviewers must be 2..4')
+        try:
+            labels=read_operator_json(Path(args.label_attestations_file))
+            trusted=read_operator_json(Path(args.label_trust_keys_file),
+                                       max_bytes=MAX_TRUST_BYTES, protected=True)
+            if not isinstance(labels,list):
+                raise HumanVerificationError('Independent label records must be a list')
+            blobs=read_test_logs(Path(args.label_evidence_dir),
+                                 [{'test':{'log_sha256':record.get('evidence_sha256')}}
+                                  for record in labels if isinstance(record,dict)])
+            data=audit_independently_signed_labels(
+                read_resolution_dataset(Path(args.resolution_dataset)),
+                labels,trusted,blobs,min_reviewers=args.label_min_reviewers)
+        except (HumanQualityError,HumanVerificationError,OSError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='github-jobs-verify':
         required=(args.gh_binary,args.gh_binary_sha256,args.attestation_repo,
                   args.attestation_repo_id,args.attestation_commit,
                   args.test_run_id,args.test_run_attempt)
