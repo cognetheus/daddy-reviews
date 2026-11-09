@@ -220,4 +220,13 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - No evaluation score permits GitHub publication, merge blocking or reviewer promotion.
 - See [R8.04d.03 human resolution scoring](R8_HUMAN_QUALITY.md).
 
-**R8.04 remains an engineering preview, not a validated production review system.** Remaining external work: genuine GitHub/Sigstore artifact attestation verification and blinded, independently adjudicated real-repository case collection with authenticated source/label provenance. Passing synthetic fixtures is not sufficient for empirical reviewer-quality claims.
+### R8.04e — Genuine GitHub/Sigstore artifact authentication (delivered increment)
+
+- Added `github-attestation-verify` CLI: SHA-256-pinned official GitHub CLI binary, offline Sigstore bundle and independently supplied trusted root, GitHub Actions OIDC issuer, expected SLSA predicate, pinned signer workflow/source commit and immutable numeric GitHub repository ID.
+- Revalidates verified certificate identity, timestamp presence and attested artifact digest after successful GitHub cryptographic verification. Forbids untrusted executable directories, path symlinks, unbounded output, arbitrary shell or automatic publication/merge actions.
+- Extends `human-verify` to require a cryptographically platform-authenticated artifact digest to match human-signed test logs, with incomplete-coverage escalation.
+- Added unit policy/adversarial tests in the Python 3.10/3.12/3.13 matrix and **a separate real GitHub Actions OIDC/Sigstore attestation integration workflow**. The real integration succeeded at commit `140bd2ba`, including an altered-artifact rejection.
+- This validates **artifact origin and integrity**, NOT that a test ran truthfully or detected an actual defect. GitHub Actions user-controllable provenance predicates cannot be treated as independently verified test results.
+- See [R8.04e offline GitHub provenance verification](R8_GITHUB_ATTESTATION.md).
+
+**Remaining release gates:** build a trusted-builder test-execution evidence chain and a blinded, independently adjudicated *real repository* defect corpus. R8.04 is implemented through artifact authentication, but production model correctness, actual test results and automatic merge safety are not established.
