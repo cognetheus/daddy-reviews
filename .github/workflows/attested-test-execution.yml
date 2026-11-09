@@ -13,27 +13,29 @@ permissions:
   contents: read
 
 jobs:
-  verify-supervised-test-record:
+  run-fixed-suite:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
-      attestations: write
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install isolated test dependency set
+      - name: Install fixed-suite test dependencies without signing access
         run: python -m pip install -e '.[verification]' pytest
-      - name: Capture ONE fixed bounded pytest suite under supervision
+      - name: Capture ONE fixed bounded pytest suite in non-OIDC job
         run: |
           set -euo pipefail
           mkdir -p /tmp/daddy-attested-tests
           python - <<'PY'
           import json, os
           from pathlib import Path
-          from daddy_reviews.test_execution import capture_fixed_ci_test, SUITE
+          from daddy_reviews.test_execution import capture_fixed_ci_test
+          assert not os.environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+          assert not os.environ.get("ACTIONS_ID_TOKEN_REQUEST_URL")
           record = capture_fixed_ci_test(
               Path(os.environ["GITHUB_WORKSPACE"]),
               repository=os.environ["GITHUB_REPOSITORY"],
@@ -48,13 +50,63 @@ jobs:
           assert output.stat().st_size <= 65_536
           assert record["outcome"] == "passed", "Supervised pytest suite failed"
           assert record["exit_code"] == 0 and record["output_complete"]
-          print("Supervisor recorded fixed pytest suite PASS (not independent proof of runtime truth)")
+          print("Unprivileged supervisor recorded PASS; this is not independent test truth")
           PY
-      - name: Attest entire supervisor record using GitHub Actions OIDC
+      - name: Transfer exact execution artifact to isolated attestation job
+        uses: actions/upload-artifact@v4
+        with:
+          name: daddy-supervised-record
+          path: /tmp/daddy-attested-tests/supervised.json
+          if-no-files-found: error
+          retention-days: 1
+
+  sign-and-verify:
+    needs: run-fixed-suite
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install offline verification dependencies (no test execution)
+        run: python -m pip install -e '.[verification]'
+      - name: Download unprivileged job's exact bounded execution artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: daddy-supervised-record
+          path: /tmp/daddy-attested-tests
+      - name: Validate executor schema BEFORE signing
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          from daddy_reviews.test_execution import inspect_test_execution_artifact
+          suite = Path(os.environ["GITHUB_WORKSPACE"]) / "tests/test_human_quality.py"
+          record = inspect_test_execution_artifact(
+              Path("/tmp/daddy-attested-tests/supervised.json").read_bytes(),
+              expected_repository=os.environ["GITHUB_REPOSITORY"],
+              expected_commit=os.environ["GITHUB_SHA"],
+              expected_workflow=os.environ["GITHUB_REPOSITORY"] + "/.github/workflows/attested-test-execution.yml",
+              expected_run_id=int(os.environ["GITHUB_RUN_ID"]),
+              expected_attempt=int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              expected_suite_sha256=hashlib.sha256(suite.read_bytes()).hexdigest(),
+          )
+          assert record["status"] == "supervisor_recorded_passed"
+          assert record["output_complete"]
+          print("Signing job schema-validated the record without executing the suite")
+          PY
+      - name: Attest validated record with GitHub OIDC
         uses: actions/attest@v4
         with:
           subject-path: /tmp/daddy-attested-tests/supervised.json
-      - name: Download exact bundle and operator trust root
+      - name: Download exact Sigstore bundle and trusted root
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -63,7 +115,7 @@ jobs:
           gh attestation download supervised.json -R "$GITHUB_REPOSITORY"
           gh attestation trusted-root > trusted_root.jsonl
           test "$(find . -maxdepth 1 -name 'sha256:*.jsonl' -type f | wc -l)" -eq 1
-      - name: Verify real Sigstore signature AND bound supervisor evidence
+      - name: Verify genuine attestation and supervised record together
         run: |
           set -euo pipefail
           cd /tmp/daddy-attested-tests
@@ -98,14 +150,14 @@ jobs:
           assert result["test_execution_platform_proven"] is False
           assert result["github_publication"] == result["merge_action"] == "none"
           Path("verified.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
-          print("Authenticated exact GitHub artifact and bounded supervisor record")
+          print("Authenticated GitHub artifact and fixed-suite supervisor record")
           PY
-      - name: Reject manipulated supervisor result even with known genuine bundle
+      - name: Reject tampered supervisor record
         run: |
           set -euo pipefail
           cd /tmp/daddy-attested-tests
           python - <<'PY'
-          import base64, json
+          import json
           from pathlib import Path
           p = Path("supervised.json")
           data = json.loads(p.read_text())
@@ -137,7 +189,7 @@ jobs:
           )
           PY
           then
-            echo "Modified supervisor record incorrectly accepted" >&2
+            echo "Mutated supervisor artifact incorrectly verified" >&2
             exit 1
           fi
-          echo "Manipulated supervisor record was rejected"
+          echo "Tampered execution evidence correctly rejected"
