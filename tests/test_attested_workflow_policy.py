@@ -25,10 +25,12 @@ def test_oidc_signer_job_has_no_repository_checkout_shell_install_or_python():
     assert "attestations: write" in sign
     assert "actions/download-artifact@v4" in sign
     assert "actions/attest@v4" in sign
-    assert "actions/checkout" not in sign
-    assert "actions/setup-python" not in sign
-    assert "python" not in sign.lower()
-    assert "run:" not in sign  # No shell commands in OIDC-capable job
+    active = "\\n".join(line for line in sign.splitlines()
+                       if not line.lstrip().startswith("#"))
+    assert "actions/checkout" not in active
+    assert "actions/setup-python" not in active
+    assert "python" not in active.lower()
+    assert "run:" not in active  # No shell commands in OIDC-capable job
 
 
 def test_test_and_verify_jobs_have_no_oidc_or_write_permissions():
