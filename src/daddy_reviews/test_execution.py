@@ -59,6 +59,12 @@ def capture_fixed_ci_test(root: Path, *, repository: str, commit: str,
     not against untrusted pull-request source in a privileged attestation job.
     """
     _check_identity(repository, commit, workflow, run_id, attempt)
+    if any(os.environ.get(name) for name in (
+        "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_URL",
+        "GH_TOKEN", "GITHUB_TOKEN",
+    )):
+        raise HumanVerificationError(
+            "Refusing to run repository tests with OIDC or GitHub tokens available")
     if type(timeout) is not int or not 1 <= timeout <= 120:
         raise HumanVerificationError("Test timeout out of bounds")
     root = Path(root).resolve(strict=True)
