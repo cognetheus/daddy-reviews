@@ -74,6 +74,8 @@ jobs:
         run: pytest -q tests/test_investigation.py
       - name: Require specialist agent tool-call harness and citation regressions
         run: pytest -q tests/test_investigative_agents.py
+      - name: Require independent signed defect-label provenance and no-promotion gating
+        run: pytest -q tests/test_ground_truth_labels.py
       - name: Require independent authenticated GitHub completed-job checks
         run: pytest -q tests/test_github_job_status.py
       - name: Require supervised execution evidence, token isolation and attested-test CLI
