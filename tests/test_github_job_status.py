@@ -98,6 +98,20 @@ def test_failed_or_incomplete_jobs_never_count_as_proven(patch):
         check.verify_github_job_responses(run_record(), jobs, **expectations())
 
 
+def test_boolean_numeric_identity_coercion_never_passes_as_run_attempt_one():
+    expected = {**expectations(), "expected_attempt": 1}
+    run = run_record()
+    run["run_attempt"] = True
+    jobs = jobs_record()
+    for job in jobs["jobs"]:
+        job["run_attempt"] = True
+    with pytest.raises(HumanVerificationError):
+        check.verify_github_job_responses(run, jobs, **expected)
+    run["run_attempt"] = 1
+    with pytest.raises(HumanVerificationError):
+        check.verify_github_job_responses(run, jobs, **expected)
+
+
 def test_duplicate_json_and_invalid_content_fails_closed():
     for raw in (b'{"a":1,"a":2}', b'{"a":NaN}', b'[]', b'{}' * 40_000):
         with pytest.raises(HumanVerificationError):
