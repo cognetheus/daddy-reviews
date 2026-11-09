@@ -1,0 +1,77 @@
+name: Verify Completed Attested Run Jobs
+
+on:
+  workflow_run:
+    workflows: ["Attested Test Execution Integration"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      completed_run_id:
+        description: "Existing completed attested-test run ID (read-only lookup)"
+        required: true
+        type: string
+      completed_run_attempt:
+        description: "Existing completed run attempt"
+        required: true
+        default: "1"
+        type: string
+      source_commit:
+        description: "Pinned source commit SHA of the completed run"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  cross-check-github-jobs:
+    runs-on: ubuntu-latest
+    # Never run on a failed attested workflow. Manual dispatch re-verifies a
+    # selected run, but the same policy still requires all three jobs successful.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install offline read-only verifier
+        run: python -m pip install -e '.[verification]' pytest
+      - name: Verify negative and source-binding regressions
+        run: pytest -q tests/test_github_job_status.py
+      - name: Query exact completed attempt and all GitHub jobs through authenticated API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFIED_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.completed_run_id || github.event.workflow_run.id }}
+          VERIFIED_RUN_ATTEMPT: ${{ github.event_name == 'workflow_dispatch' && inputs.completed_run_attempt || github.event.workflow_run.run_attempt }}
+          VERIFIED_SOURCE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.source_commit || github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          gh_bin="$(readlink -f "$(command -v gh)")"
+          gh_sha="$(sha256sum "$gh_bin" | cut -d ' ' -f 1)"
+          python -m daddy_reviews.cli github-jobs-verify \
+            --root "$GITHUB_WORKSPACE" \
+            --gh-binary "$gh_bin" \
+            --gh-binary-sha256 "$gh_sha" \
+            --attestation-repo "$GITHUB_REPOSITORY" \
+            --attestation-repo-id "$GITHUB_REPOSITORY_ID" \
+            --attestation-commit "$VERIFIED_SOURCE_SHA" \
+            --test-run-id "$VERIFIED_RUN_ID" \
+            --test-run-attempt "$VERIFIED_RUN_ATTEMPT" > /tmp/daddy-external-jobs.json
+          python - <<'PY'
+          import json
+          result = json.load(open("/tmp/daddy-external-jobs.json", encoding="utf-8"))
+          assert result["status"] == "github_api_run_and_jobs_verified"
+          assert list(result["jobs"]) == ["run-fixed-suite", "sign-only", "verify-attested"]
+          assert result["github_reported_run_conclusion"] == "success"
+          assert result["cryptographic_job_status_signature"] is False
+          assert result["test_outcome_proven"] is False
+          assert result["github_publication"] == result["merge_action"] == "none"
+          print("Authenticated API cross-checked completed attested test workflow and its 3 jobs")
+          PY
