@@ -53,7 +53,7 @@ daddy-reviews telemetry --report-file reviewed-run.json
 
 See [R5 safe publishing](docs/R5_GITHUB_PUBLISHING.md) and [R6 quality/calibration](docs/R6_CALIBRATION.md). The provided labeled dataset is **synthetic**, not evidence of model accuracy in real PRs. All GitHub writes remain explicitly authorized; model findings remain unverified.
 
-## R8.04a–e — Evidence-driven human verification and artifact origin
+## R8.04a–f — Evidence-driven human verification and attested test execution
 
 R8.04 adds a source-bound verification queue, read-only independent counterexample challenge, and an **Ed25519-signed human attestation** workflow. Two separately trusted human identities must attest a decision, and their signatures bind the exact model claim, changed-source hash, patch, and observed test-log digest. Opposing AI challenges require explicit signed human acknowledgement. Incomplete reviewers or stale evidence **escalate rather than prove clean code**.
 
@@ -70,7 +70,9 @@ Use the developer APIs in `daddy_reviews.verification_queue`, `daddy_reviews.ind
 
 **R8.04e delivered:** `github-attestation-verify` uses a pinned GitHub CLI binary, offline Sigstore trusted roots and cryptographic OIDC verification for an exact artifact. Policy pins the signer workflow, source commit, immutable numeric repository ID and artifact SHA-256. `human-verify` can also link that authenticated artifact to independently signed human-test receipts. A dedicated GitHub Actions workflow successfully tested **real** OIDC/Sigstore signing, offline verification and tamper rejection. This authenticates artifact origin, **not** whether a test actually ran or passed.
 
-See [R8.04a queue](docs/R8_VERIFICATION_QUEUE.md), [R8.04b challenge](docs/R8_INDEPENDENT_CHALLENGE.md), [R8.04c human attestation](docs/R8_HUMAN_VERIFICATION.md), [R8.04d operator workflow](docs/R8_OPERATOR_WORKFLOW.md), [R8.04d evaluation](docs/R8_HUMAN_QUALITY.md), and [R8.04e GitHub/Sigstore verification](docs/R8_GITHUB_ATTESTATION.md). Real-world independently labeled accuracy and independently controlled test-execution provenance remain open.
+**R8.04f delivered:** an opt-in fixed-suite pytest supervisor and `attested-test-verify` CLI. A genuine three-job GitHub Actions integration executes the suite without OIDC permissions, signs the bounded execution artifact in an **action-only signing job**, then authenticates signature, suite hash, run identity and exit-code record in a separate non-OIDC job. Process evidence and artifact origin are cryptographically linked, but the reported outcome remains an attested workflow claim—not proof that arbitrary repository code is correct.
+
+See [R8.04a queue](docs/R8_VERIFICATION_QUEUE.md), [R8.04b challenge](docs/R8_INDEPENDENT_CHALLENGE.md), [R8.04c human attestation](docs/R8_HUMAN_VERIFICATION.md), [R8.04d operator workflow](docs/R8_OPERATOR_WORKFLOW.md), [R8.04d evaluation](docs/R8_HUMAN_QUALITY.md), [R8.04e GitHub/Sigstore verification](docs/R8_GITHUB_ATTESTATION.md), and [R8.04f supervised test execution](docs/R8_SUPERVISED_TEST_EXECUTION.md). Independently authenticated GitHub job status and real-world human-labeled model accuracy remain open.
 
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
 
