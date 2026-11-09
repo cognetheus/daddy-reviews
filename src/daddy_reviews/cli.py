@@ -198,6 +198,38 @@ def main(argv=None):
             )
             data=adjudicate_human_verification(root,**inputs,
                                               min_reviewers=args.human_min_reviewers)
+            hosted_flags=(args.attested_artifact_file,args.attestation_bundle_file,
+                          args.sigstore_trusted_root_file,args.gh_binary,
+                          args.gh_binary_sha256,args.attestation_repo,
+                          args.attestation_repo_id,args.attestation_commit,
+                          args.attestation_signer_workflow,args.attestation_artifact_sha256)
+            if any(flag is not None for flag in hosted_flags):
+                if not all(flag is not None and flag != '' for flag in hosted_flags):
+                    raise HumanVerificationError(
+                        'Human hosted attestation requires all pinned --attested-artifact-file, --attestation-*, --sigstore-trusted-root-file and --gh-* arguments')
+                platform=verify_github_attestation_offline(
+                    artifact_file=Path(args.attested_artifact_file),
+                    bundle_file=Path(args.attestation_bundle_file),
+                    trusted_root_file=Path(args.sigstore_trusted_root_file),
+                    gh_binary=Path(args.gh_binary),
+                    gh_binary_sha256=args.gh_binary_sha256,
+                    expected_repo=args.attestation_repo,
+                    expected_repo_id=args.attestation_repo_id,
+                    expected_commit=args.attestation_commit,
+                    signer_workflow=args.attestation_signer_workflow,
+                    expected_artifact_sha256=args.attestation_artifact_sha256)
+                linked={rec['test']['log_sha256'] for rec in inputs['attestations']}
+                if not linked or platform['artifact_sha256'] not in linked:
+                    raise HumanVerificationError(
+                        'Verified GitHub artifact does not bind to any signed human-test log')
+                missing=linked-{platform['artifact_sha256']}
+                platform['linked_human_test_count']=sum(
+                    rec['test']['log_sha256']==platform['artifact_sha256']
+                    for rec in inputs['attestations'])
+                platform['uncovered_human_test_log_count']=len(missing)
+                if missing:
+                    platform['status']='incomplete_human_test_coverage'
+                data['external_artifact_attestation']=platform
             ci_flags=(args.ci_receipts_file,args.ci_runner_keys_file,
                       args.ci_expected_repo,args.ci_expected_commit)
             if any(ci_flags):
@@ -484,6 +516,9 @@ def main(argv=None):
         raise SystemExit(2)
     if args.command=='human-verify' and (data['status'] != 'human_attested_resolution'
             or ('ci_runner_provenance' in data
-                and data['ci_runner_provenance']['status'] != 'runner_key_verified')):
+                and data['ci_runner_provenance']['status'] != 'runner_key_verified')
+            or ('external_artifact_attestation' in data
+                and data['external_artifact_attestation']['status']
+                    != 'artifact_signature_and_identity_verified')):
         raise SystemExit(2)
 if __name__=='__main__':main()
