@@ -97,3 +97,47 @@ def test_cli_invalid_authenticator_fails_before_json_result(
         cli.main(args)
     assert exc.value.code == 2
     assert "Unverified GitHub provenance" in capsys.readouterr().err
+
+
+def test_combined_signed_artifact_and_live_github_jobs_gate(monkeypatch, tmp_path, capsys):
+    args = build_args(tmp_path) + ["--check-live-github-jobs"]
+    monkeypatch.setenv("GH_TOKEN", "operator-actions-read-token-123456")
+    invoked = []
+    monkeypatch.setattr(cli, "verify_execution_with_github_attestation",
+                        lambda **kwargs: {
+                            "status": "supervisor_recorded_passed_origin_authenticated",
+                            "artifact_origin_verified": True,
+                            "test_outcome_proven": False,
+                            "merge_action": "none", "github_publication": "none",
+                        })
+    def external(**kwargs):
+        invoked.append(kwargs)
+        return {"status": "github_api_run_and_jobs_verified",
+                "jobs": {"run-fixed-suite": {}, "sign-only": {},
+                         "verify-attested": {}},
+                "test_outcome_proven": False}
+    monkeypatch.setattr(cli, "verify_live_github_jobs", external)
+    cli.main(args)
+    result = json.loads(capsys.readouterr().out)
+    assert result["external_job_status"]["status"] == "github_api_run_and_jobs_verified"
+    assert invoked[0]["expected_commit"] == COMMIT
+    assert invoked[0]["expected_run_id"] == 919
+    assert invoked[0]["expected_attempt"] == 1
+    assert invoked[0]["api_token"] == "operator-actions-read-token-123456"
+
+
+def test_combined_signed_artifact_fails_without_authenticated_job_status(
+        monkeypatch, tmp_path, capsys):
+    args = build_args(tmp_path) + ["--check-live-github-jobs"]
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    monkeypatch.setattr(cli, "verify_execution_with_github_attestation",
+                        lambda **kwargs: {
+                            "status": "supervisor_recorded_passed_origin_authenticated",
+                            "artifact_origin_verified": True})
+    def failure(**kwargs):
+        raise HumanVerificationError("GitHub status could not be independently authenticated")
+    monkeypatch.setattr(cli, "verify_live_github_jobs", failure)
+    with pytest.raises(SystemExit) as exc:
+        cli.main(args)
+    assert exc.value.code == 2
+    assert "independently authenticated" in capsys.readouterr().err
