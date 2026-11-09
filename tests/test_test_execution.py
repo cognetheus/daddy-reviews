@@ -190,6 +190,23 @@ def test_run_identity_and_missing_test_suite_rejected_before_execution(monkeypat
     assert not invoked
 
 
+def test_test_supervisor_refuses_process_with_oidc_or_github_credentials(monkeypatch):
+    for credential in (
+        "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_URL",
+        "GH_TOKEN", "GITHUB_TOKEN",
+    ):
+        invoked = []
+        with monkeypatch.context() as scope:
+            scope.setenv(credential, "do-not-expose")
+            scope.setattr(subject.subprocess, "run",
+                          lambda *args, **kwargs: invoked.append((args, kwargs)))
+            with pytest.raises(HumanVerificationError):
+                subject.capture_fixed_ci_test(
+                    ROOT, repository=REPO, commit=COMMIT,
+                    workflow=WF, run_id=919, attempt=1)
+        assert not invoked
+
+
 def test_single_host_verification_links_to_exact_same_artifact(monkeypatch, tmp_path):
     record = payload()
     artifact = encode(record)
