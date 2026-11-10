@@ -226,7 +226,7 @@ def build_real_repository_intake(root: Path, *, repository: str,
     for r in selected:
         cid = sha256_json({**identity, "path": r["path"], "line": r["line"]})[:24]
         case_records.append({
-            "case_id": cid, "path": r["path"], "line": r["line"],
+            "case_id": cid, "tier": "lite", "path": r["path"], "line": r["line"],
             "source_sha256": r["source_sha256"],
             "line_sha256": r["line_sha256"], "source_line_untrusted": r["line_text"],
             "label": None, "blind_to_model_output": True,
