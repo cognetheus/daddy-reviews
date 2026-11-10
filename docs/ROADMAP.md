@@ -252,4 +252,18 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Output stays advisory: no automatic model promotion, defect truth claim, PR publication, or merge action. Ten signed-label *tests* use synthetic evidence and generated test keys; no genuine repository human-label corpus has been collected.
 - See [R8.04g GitHub job checks and signed labels](R8_GITHUB_JOBS_AND_LABELS.md). The CI matrix tests both new interfaces.
 
-**Remaining release gates:** protected/immutably pinned reviewer workflow and builder, evidence-backed independently adjudicated *real-repository* case sampling including defects the model did not nominate, empirically measured false positives/omissions, and deliberate human-only release enforcement. Authenticated GitHub run status and human signatures do not by themselves prove a test or a label is factually correct.
+### R8.04h.01 — Real Git-object source intake and blind sampling (delivered)
+
+- Added `real-sample` CLI to construct deterministic case packets from **immutable local Git base/head commit objects** after verifying HEAD and ancestry. Exact added source line text is rechecked against the committed blob; binary, symlinked, unbounded and unsupported source is rejected.
+- Segregates **blind packets** from owner-only **sealed model prediction ledgers** using exclusive `0600` output creation. Model predictions remain hidden from independent adjudicators.
+- Reserves at least half the requested sample for unflagged changed-source anchors where available, mitigating the "label only what the model noticed" error. A model-free intake reports no prediction metrics or defect labels.
+- Real GitHub Actions integration [Real Repository Blind Intake](../.github/workflows/real-corpus-intake.yml) passed against actual code in this repository, confirming genuine committed source and no simulated defect labels.
+
+### R8.04h.02 — Independently signed real-source case auditing (delivered infrastructure)
+
+- Added `real-label-audit`: re-derives the exact selected population, private ledger and seed from Git objects before accepting two+ separate Ed25519-signed human labels and SHA-256 bound evidence for each source anchor.
+- Separates confirmed sampled flagged anchors, sampled false alarms, and **unflagged anchors adjudicated as defective**; refuses to score absent model reports, forged source/ledger data, missing human signers, contradictory labels or invalid evidence.
+- All outputs remain **sample observations**, not unbiased PR/repository-wide defect recall, authenticated independent human identity, proven defect truth, model promotion or merge authorization. Tests use generated independent signing keys and fixture labels over *real local Git commits*.
+- See [R8.04h real repository evaluation](R8_REAL_REPOSITORY_EVALUATION.md). Three-version CI tests enforce real-source intake, blind/private separation, tracked-symlink refusal, human signatures, missing evidence and no-promotion policies.
+
+**Remaining release gates:** actual independent human adjudication on externally sourced real-repository cases, sampling beyond added-line anchors, scientific evaluation of missed bugs and confounders, independently protected builder/label protocols, and explicit operator approval before publishing/merging. No factual defect or production-model quality claim is established by CI-fixture labels.
