@@ -169,6 +169,19 @@ def test_symlinked_output_directory_fails_closed(tmp_path):
         write_real_intake_files(intake, link / "blind.json", folder / "ledger.json")
 
 
+def test_tracked_git_symlink_masquerading_as_source_is_rejected(tmp_path):
+    root, base, previous_head = git_source(tmp_path)
+    link = root / "src" / "masquerade.py"
+    link.symlink_to("check.py")
+    run(root, "add", "src/masquerade.py")
+    run(root, "-c", "user.name=Real Intake Test",
+        "-c", "user.email=sample@example.invalid",
+        "commit", "-qm", "add tracked symlink with a code extension")
+    head = run(root, "rev-parse", "HEAD")
+    with pytest.raises(RealIntakeError):
+        build(root, previous_head, head)
+
+
 def test_operator_cli_writes_real_cases_and_only_summary_to_stdout(tmp_path, capsys):
     root, base, head = git_source(tmp_path)
     output = tmp_path / "intake"
