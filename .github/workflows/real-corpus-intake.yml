@@ -72,3 +72,12 @@ jobs:
           assert (p / "model-ledger.json").stat().st_mode & 0o077 == 0
           print("REAL repository source sampled from immutable Git objects; labels pending")
           PY
+      - name: Publish ONLY blind source packet and operator-safe summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: daddy-blind-real-source-cases
+          path: |
+            /tmp/daddy-real-intake/blind.json
+            /tmp/daddy-real-intake/summary.json
+          if-no-files-found: error
+          retention-days: 7
