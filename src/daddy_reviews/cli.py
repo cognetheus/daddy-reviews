@@ -42,6 +42,7 @@ from .human_quality import HumanQualityError, read_resolution_dataset, evaluate_
 from .github_attestation import verify_github_attestation_offline
 from .github_job_status import verify_live_github_jobs
 from .ground_truth_labels import audit_independently_signed_labels
+from .real_repository_intake import build_real_repository_intake, write_real_intake_files, RealIntakeError
 from .operator_artifacts import read_test_logs
 from .test_execution import verify_execution_with_github_attestation
 from .human_resolution import adjudicate_human_verification
@@ -50,7 +51,7 @@ from .human_attestation import HumanVerificationError
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -142,6 +143,12 @@ def main(argv=None):
     parser.add_argument('--label-evidence-dir',help='Directory of independently signed human label evidence bytes')
     parser.add_argument('--label-min-reviewers',type=int,default=2,
                         help='Distinct label signers per case, 2..4')
+    parser.add_argument('--real-sample-seed',help='Pinned operator sampling seed, minimum eight characters')
+    parser.add_argument('--real-sample-max-cases',type=int,default=40,
+                        help='Maximum line-grounded real source cases, 1..160')
+    parser.add_argument('--real-blind-output',help='New file: share ONLY this with blind human adjudicators')
+    parser.add_argument('--real-private-output',help='New owner-only private scoring ledger, NEVER share with adjudicators')
+    parser.add_argument('--real-model-report',help='Optional completed R8.02 report for model-flagged and unflagged sampling')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -160,7 +167,26 @@ def main(argv=None):
         parser.error('--record-model-turns is only supported by ai-investigate')
     if args.check_live_github_jobs and args.command != 'attested-test-verify':
         parser.error('--check-live-github-jobs requires attested-test-verify')
-    if args.command=='human-label-audit':
+    if args.command=='real-sample':
+        required=(args.attestation_repo,args.attestation_repo_id,
+                  args.real_sample_seed,args.real_blind_output,args.real_private_output)
+        if not all(value is not None and value != '' for value in required):
+            parser.error('real-sample needs --attestation-repo, --attestation-repo-id, --base, --head (full commit SHAs), --real-sample-seed, --real-blind-output and --real-private-output')
+        try:
+            source_report=(read_operator_json(Path(args.real_model_report))
+                           if args.real_model_report else None)
+            intake=build_real_repository_intake(
+                root,repository=args.attestation_repo,
+                repository_id=args.attestation_repo_id,
+                base_commit=args.base,head_commit=args.head,
+                seed=args.real_sample_seed,max_cases=args.real_sample_max_cases,
+                report=source_report)
+            data=write_real_intake_files(
+                intake, Path(args.real_blind_output),
+                Path(args.real_private_output))
+        except (RealIntakeError,HumanVerificationError,OSError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='human-label-audit':
         if not all((args.resolution_dataset,args.label_attestations_file,
                     args.label_trust_keys_file,args.label_evidence_dir)):
             parser.error('human-label-audit needs --resolution-dataset, --label-attestations-file, --label-trust-keys-file and --label-evidence-dir')
