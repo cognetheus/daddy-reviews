@@ -89,9 +89,9 @@ def _source(root, head, path):
     # immutable blob entry rather than following or interpreting link content.
     entry = _git(root, "ls-tree", "-z", head, "--", path, limit=2048)
     try:
-        item, trailing = entry.split(b"\\0", 1)
-        mode, kind, object_id = item.split(b"\\t", 1)[0].split(b" ")
-        tracked_path = item.split(b"\\t", 1)[1].decode("utf-8")
+        item, trailing = entry.split(b"\0", 1)
+        mode, kind, object_id = item.split(b"\t", 1)[0].split(b" ")
+        tracked_path = item.split(b"\t", 1)[1].decode("utf-8")
     except (ValueError, UnicodeError) as exc:
         raise RealIntakeError("Changed file is not an exact tracked Git object") from exc
     if (trailing or mode not in (b"100644", b"100755")
