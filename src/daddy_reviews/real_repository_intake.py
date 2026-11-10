@@ -10,12 +10,10 @@ ground-truth accuracy is made by this collector.
 """
 from __future__ import annotations
 
-from collections import Counter
 import hashlib
 import json
 import os
 from pathlib import Path
-import stat
 import re
 import subprocess
 
@@ -87,6 +85,19 @@ def _line_map(patch: str) -> dict:
 def _source(root, head, path):
     if not _safe_path(path) or Path(path).suffix not in EXTENSIONS:
         raise RealIntakeError("Unsafe or unsupported changed source")
+    # A tracked Git symlink ending in .py/.ts is not source code. Inspect the
+    # immutable blob entry rather than following or interpreting link content.
+    entry = _git(root, "ls-tree", "-z", head, "--", path, limit=2048)
+    try:
+        item, trailing = entry.split(b"\\0", 1)
+        mode, kind, object_id = item.split(b"\\t", 1)[0].split(b" ")
+        tracked_path = item.split(b"\\t", 1)[1].decode("utf-8")
+    except (ValueError, UnicodeError) as exc:
+        raise RealIntakeError("Changed file is not an exact tracked Git object") from exc
+    if (trailing or mode not in (b"100644", b"100755")
+            or kind != b"blob" or tracked_path != path
+            or len(object_id) not in (40, 64)):
+        raise RealIntakeError("Nonregular or ambiguous Git object is not supported")
     raw = _git(root, "show", f"{head}:{path}", limit=MAX_SOURCE)
     if b"\0" in raw or len(raw) > MAX_SOURCE:
         raise RealIntakeError("Binary or oversized source cannot be sampled")
