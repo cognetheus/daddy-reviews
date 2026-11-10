@@ -112,7 +112,7 @@ def test_missing_model_report_still_authenticates_labels_but_does_not_score(tmp_
 def test_private_ledger_and_blind_packet_forgery_cannot_redefine_git_population(tmp_path):
     root, intake, records, keys, blobs, _, kwargs = signed_case_records(tmp_path)
     for alter in (
-        lambda x: x["private_ledger"]["cases"][0].update(model_flagged=False),
+        lambda x: x["private_ledger"]["cases"][0].update(\n            model_flagged=not x["private_ledger"]["cases"][0]["model_flagged"]),
         lambda x: x["blind_packet"]["cases"][0].update(line=999),
         lambda x: x["private_ledger"]["population"].update(eligible_added_lines=0),
         lambda x: x["blind_packet"]["cases"][0].update(label="defect"),
