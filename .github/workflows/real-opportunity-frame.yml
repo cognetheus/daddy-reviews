@@ -1,0 +1,86 @@
+name: Real Repository Opportunity Frame
+
+on:
+  push:
+    paths:
+      - '.github/workflows/real-opportunity-frame.yml'
+      - 'src/daddy_reviews/real_repository_frame.py'
+      - 'src/daddy_reviews/real_repository_frame_quality.py'
+      - 'tests/test_real_repository_frame.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sample-real-git-source-context:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only opportunity sampling tools
+        run: python -m pip install -e '.[verification]' pytest
+      - name: Check actual committed-source and signed-label regression fixtures
+        run: pytest -q tests/test_real_repository_frame.py
+      - name: Sample repository source outside the patch, without model labels
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/daddy-opportunity-intake
+          chmod 700 /tmp/daddy-opportunity-intake
+          # A real tracked Python change fixes the base for reproducible git
+          # source inspection; checkout must keep the full commit history.
+          changed_source_commit="$(git log -1 --format=%H -- src/daddy_reviews/real_repository_frame.py)"
+          test -n "$changed_source_commit"
+          base_commit="$(git rev-parse "$changed_source_commit^")"
+          python -m daddy_reviews.cli opportunity-sample \
+            --root "$GITHUB_WORKSPACE" \
+            --base "$base_commit" \
+            --head "$GITHUB_SHA" \
+            --attestation-repo "$GITHUB_REPOSITORY" \
+            --attestation-repo-id "$GITHUB_REPOSITORY_ID" \
+            --real-sample-seed "daddy-reviews-opportunities-2026-11-a" \
+            --real-sample-max-cases 32 \
+            --real-blind-output /tmp/daddy-opportunity-intake/blind.json \
+            --real-private-output /tmp/daddy-opportunity-intake/private.json \
+            > /tmp/daddy-opportunity-intake/summary.json
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          folder = Path("/tmp/daddy-opportunity-intake")
+          blind = json.loads((folder / "blind.json").read_text())
+          private = json.loads((folder / "private.json").read_text())
+          summary = json.loads((folder / "summary.json").read_text())
+          assert summary["status"] == "opportunity_blind_packet_created"
+          assert blind["source"] == "immutable_tracked_git_blobs"
+          assert blind["model_predictions_included"] is False
+          assert not any(case["label"] is not None for case in blind["cases"])
+          assert "model_flagged" not in (folder / "blind.json").read_text()
+          assert "model_flagged" in (folder / "private.json").read_text()
+          strata = {case["stratum"] for case in blind["cases"]}
+          assert "added" in strata
+          assert "unchanged_touched" in strata
+          assert "unchanged_other" in strata
+          assert private["prediction_mode"] == "no_model_report"
+          assert summary["population_accuracy_claim"] is False
+          assert summary["human_labels_collected"] is False
+          assert summary["github_publication"] == summary["merge_action"] == "none"
+          assert (folder / "blind.json").stat().st_mode & 0o077 == 0
+          assert (folder / "private.json").stat().st_mode & 0o077 == 0
+          print("Genuine Git object line opportunities include unchanged context; no bug truth claimed")
+          PY
+      - name: Publish ONLY blind context opportunities and safe summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: daddy-blind-opportunity-frame
+          path: |
+            /tmp/daddy-opportunity-intake/blind.json
+            /tmp/daddy-opportunity-intake/summary.json
+          if-no-files-found: error
+          retention-days: 7
