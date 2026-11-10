@@ -13,7 +13,9 @@ from __future__ import annotations
 from collections import Counter
 import hashlib
 import json
+import os
 from pathlib import Path
+import stat
 import re
 import subprocess
 
@@ -150,9 +152,12 @@ def build_real_repository_intake(root: Path, *, repository: str,
     actual = _git(root, "rev-parse", "--verify", "HEAD", limit=100).decode().strip()
     if actual != head_commit:
         raise RealIntakeError("Working Git HEAD is not the requested immutable commit")
-    ancestor = subprocess.run(
-        ["git", "-C", str(root), "merge-base", "--is-ancestor",
-         base_commit, head_commit], capture_output=True, check=False, timeout=20)
+    try:
+        ancestor = subprocess.run(
+            ["git", "-C", str(root), "merge-base", "--is-ancestor",
+             base_commit, head_commit], capture_output=True, check=False, timeout=20)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RealIntakeError("Cannot verify immutable commit ancestry") from exc
     if ancestor.returncode != 0:
         raise RealIntakeError("Pinned base is not an ancestor of requested head")
     patch_bytes = _git(root, "diff", "--no-ext-diff", "--no-textconv",
@@ -259,4 +264,62 @@ def build_real_repository_intake(root: Path, *, repository: str,
         "labels_authenticated": False, "empirical_accuracy_claim": False,
         "promotion_eligible": False, "merge_action": "none",
         "github_publication": "none",
+    }
+
+def _output_path(value):
+    path = Path(os.path.abspath(os.fspath(value)))
+    for part in (path, *path.parents):
+        if part.is_symlink():
+            raise RealIntakeError("Refusing symlinked output path or parent")
+    if not path.parent.is_dir():
+        raise RealIntakeError("Explicit output directory does not exist")
+    if path.parent.stat().st_mode & 0o022:
+        raise RealIntakeError("Output directory must not be group/world writable")
+    if path.exists():
+        raise RealIntakeError("Existing intake artifact cannot be overwritten")
+    return path
+
+
+def write_real_intake_files(intake: dict, blind_path: Path, ledger_path: Path) -> dict:
+    """Write segregated blind/private files using exclusive owner-only creation.
+
+    Do not send the private ledger to adjudicators; it contains model predictions.
+    Caller chooses a trusted, private output directory. No overwrite or symlinks.
+    """
+    if (not isinstance(intake, dict)
+            or intake.get("format") != FORMAT
+            or intake.get("status") != "real_source_intake_not_ground_truth"):
+        raise RealIntakeError("Only genuine intake schema may be exported")
+    blind = _output_path(blind_path)
+    ledger = _output_path(ledger_path)
+    if blind == ledger:
+        raise RealIntakeError("Blind and private scoring outputs must be separate files")
+    created = []
+    try:
+        for path, obj in ((blind, intake["blind_packet"]),
+                          (ledger, intake["private_ledger"])):
+            payload = (json.dumps(obj, sort_keys=True, indent=2,
+                                  ensure_ascii=False) + "\n").encode("utf-8")
+            if len(payload) > 2_000_000:
+                raise RealIntakeError("Sample output exceeds 2 MB ceiling")
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(path, flags, 0o600)
+            created.append(path)
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+    except (OSError, ValueError, KeyError) as exc:
+        for path in created:
+            path.unlink(missing_ok=True)
+        raise RealIntakeError("Unable to securely write segregated sample artifacts") from exc
+    return {
+        "format": FORMAT, "status": "operator_case_packets_created",
+        "blind_packet_sha256": sha256_json(intake["blind_packet"]),
+        "private_ledger_sha256": sha256_json(intake["private_ledger"]),
+        "population": intake["private_ledger"]["population"],
+        "model_predictions_disclosed_in_blind_packet": False,
+        "human_labels_collected": False, "accuracy_measured": False,
+        "promotion_eligible": False,
+        "github_publication": "none", "merge_action": "none",
     }
