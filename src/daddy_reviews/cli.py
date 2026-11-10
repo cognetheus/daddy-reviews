@@ -44,6 +44,8 @@ from .github_job_status import verify_live_github_jobs
 from .ground_truth_labels import audit_independently_signed_labels
 from .real_repository_intake import build_real_repository_intake, write_real_intake_files, RealIntakeError
 from .real_repository_quality import audit_real_repository_labels, read_label_evidence
+from .real_repository_frame import build_opportunity_frame, write_opportunity_frame_files
+from .real_repository_frame_quality import audit_opportunity_labels
 from .operator_artifacts import read_test_logs
 from .test_execution import verify_execution_with_github_attestation
 from .human_resolution import adjudicate_human_verification
@@ -52,7 +54,7 @@ from .human_attestation import HumanVerificationError
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -170,7 +172,54 @@ def main(argv=None):
         parser.error('--record-model-turns is only supported by ai-investigate')
     if args.check_live_github_jobs and args.command != 'attested-test-verify':
         parser.error('--check-live-github-jobs requires attested-test-verify')
-    if args.command=='real-label-audit':
+    if args.command=='opportunity-sample':
+        required=(args.attestation_repo,args.attestation_repo_id,
+                  args.real_sample_seed,args.real_blind_output,args.real_private_output,
+                  args.base,args.head)
+        if not all(value is not None and value != '' for value in required):
+            parser.error('opportunity-sample requires pinned repo/ID/base/head/seed and two distinct output files')
+        try:
+            source_report=(read_operator_json(Path(args.real_model_report))
+                           if args.real_model_report else None)
+            frame=build_opportunity_frame(
+                root,repository=args.attestation_repo,
+                repository_id=args.attestation_repo_id,
+                base_commit=args.base,head_commit=args.head,
+                seed=args.real_sample_seed,max_cases=args.real_sample_max_cases,
+                report=source_report)
+            data=write_opportunity_frame_files(
+                frame, Path(args.real_blind_output),
+                Path(args.real_private_output))
+        except (RealIntakeError,HumanVerificationError,OSError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='opportunity-audit':
+        required=(args.attestation_repo,args.attestation_repo_id,
+                  args.real_sample_seed,args.real_blind_file,args.real_private_file,
+                  args.base,args.head,args.label_attestations_file,
+                  args.label_trust_keys_file,args.label_evidence_dir)
+        if not all(value is not None and value != '' for value in required):
+            parser.error('opportunity-audit requires original pinned source, blind/private files and independent labels/trust/evidence inputs')
+        try:
+            labels=read_operator_json(Path(args.label_attestations_file))
+            if not isinstance(labels,list):
+                raise HumanVerificationError('Opportunity labels must be a JSON list')
+            keys=read_operator_json(Path(args.label_trust_keys_file),
+                                    max_bytes=MAX_TRUST_BYTES,protected=True)
+            blobs=read_label_evidence(Path(args.label_evidence_dir),labels)
+            model=(read_operator_json(Path(args.real_model_report))
+                   if args.real_model_report else None)
+            data=audit_opportunity_labels(
+                root,read_operator_json(Path(args.real_blind_file)),
+                read_operator_json(Path(args.real_private_file)),
+                labels,keys,blobs,repository=args.attestation_repo,
+                repository_id=args.attestation_repo_id,
+                base_commit=args.base,head_commit=args.head,
+                seed=args.real_sample_seed,max_cases=args.real_sample_max_cases,
+                report=model,min_reviewers=args.label_min_reviewers)
+        except (RealIntakeError,HumanQualityError,HumanVerificationError,
+                OSError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='real-label-audit':
         required=(args.attestation_repo,args.attestation_repo_id,args.real_sample_seed,
                   args.real_blind_file,args.real_private_file,
                   args.label_attestations_file,args.label_trust_keys_file,args.label_evidence_dir)
@@ -660,6 +709,8 @@ def main(argv=None):
     if args.command=='human-resolution-compare' and data['status'] == 'regression':
         raise SystemExit(2)
     if args.command=='real-label-audit' and data['status'] == 'conflicting_human_labels_escalate':
+        raise SystemExit(2)
+    if args.command=='opportunity-audit' and data['status'] == 'conflicting_labels_human_escalation':
         raise SystemExit(2)
     if args.command=='attested-test-verify' and data['status'] != 'supervisor_recorded_passed_origin_authenticated':
         raise SystemExit(2)
