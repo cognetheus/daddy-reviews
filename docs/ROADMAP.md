@@ -266,4 +266,17 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - All outputs remain **sample observations**, not unbiased PR/repository-wide defect recall, authenticated independent human identity, proven defect truth, model promotion or merge authorization. Tests use generated independent signing keys and fixture labels over *real local Git commits*.
 - See [R8.04h real repository evaluation](R8_REAL_REPOSITORY_EVALUATION.md). Three-version CI tests enforce real-source intake, blind/private separation, tracked-symlink refusal, human signatures, missing evidence and no-promotion policies.
 
-**Remaining release gates:** actual independent human adjudication on externally sourced real-repository cases, sampling beyond added-line anchors, scientific evaluation of missed bugs and confounders, independently protected builder/label protocols, and explicit operator approval before publishing/merging. No factual defect or production-model quality claim is established by CI-fixture labels.
+### R8.04i.01 — Real repository source opportunity frame beyond changed lines (delivered)
+
+- `opportunity-sample` builds a separate versioned, Git-object-backed four-stratum frame: model-flagged and unflagged added lines, unchanged lines in touched files, and source lines from untouched files. It reads only immutable tracked regular blobs, with bounded file/line/byte budgets and deterministic seed-derived sampling.
+- Publishes the three **public** source scopes in a blind packet while keeping four **private model** strata, rule names, and predictions exclusively in the sealed ledger. Existing R8.04h changed-line artifacts remain compatible and unmodified.
+- Added a real GitHub Actions [Real Repository Opportunity Frame](../.github/workflows/real-opportunity-frame.yml) that samples all three source scopes from a genuine repository commit. It exports only seven-day blind research artifacts and safe summaries; the model ledger never leaves the runner.
+
+### R8.04i.02 — Scope-safe signed adjudication and metrics (delivered infrastructure)
+
+- `opportunity-audit` first rebuilds the exact frame from immutable Git objects and rejects altered sample/ledger/population records. Requires two or more independent enrolled Ed25519 signers with source-bound SHA-256 evidence for every selected case; disagreements escalate with **no metric release**.
+- If a completed matching diff-only investigation report was supplied, records **unweighted, biased sample-only** added-line flagged/unflagged outcomes. Unchanged context discoveries are recorded separately and **not counted as false negatives of a diff-only reviewer**. Without a model report, independent human signatures can be authenticated but prediction metrics are absent.
+- Security/CI tests run genuine local Git repositories and generated synthetic label keys. No real human adjudications or factual defect truth claim is made. No reviewer promotion, merge block or PR publication is authorized.
+- See [R8.04i source opportunity frame](R8_SOURCE_OPPORTUNITY_FRAME.md).
+
+**Remaining release gates:** human reviewers must genuinely and independently adjudicate externally sourced repositories, use a precommitted scientifically valid defect opportunity sampling methodology, track inter-annotator agreement/uncertainty, and protect test/build definitions with immutable dependencies. Source-line study metrics must not be called unbiased repository-wide model recall. No CI-signed fixture is sufficient for production accuracy claims or autonomous approvals/merging.
