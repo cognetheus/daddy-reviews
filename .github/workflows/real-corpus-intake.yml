@@ -1,0 +1,74 @@
+name: Real Repository Blind Intake
+
+on:
+  push:
+    paths:
+      - '.github/workflows/real-corpus-intake.yml'
+      - 'src/daddy_reviews/real_repository_intake.py'
+      - 'tests/test_real_repository_intake.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sample-committed-real-source:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only actual Git-object collector
+        run: python -m pip install -e . pytest
+      - name: Run adversarial repository-intake tests
+        run: pytest -q tests/test_real_repository_intake.py
+      - name: Sample actual source from pinned immutable Git commits
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/daddy-real-intake
+          chmod 700 /tmp/daddy-real-intake
+          # Sample a genuine tracked .py change, rather than empty workflow-only
+          # commits. This does not claim the sampled source is defective.
+          source_commit="$(git log -1 --format=%H -- src/daddy_reviews/real_repository_intake.py)"
+          test -n "$source_commit"
+          base_sha="$(git rev-parse "$source_commit^")"
+          test "$base_sha" != "$GITHUB_SHA"
+          python -m daddy_reviews.cli real-sample \
+            --root "$GITHUB_WORKSPACE" \
+            --base "$base_sha" \
+            --head "$GITHUB_SHA" \
+            --attestation-repo "$GITHUB_REPOSITORY" \
+            --attestation-repo-id "$GITHUB_REPOSITORY_ID" \
+            --real-sample-seed "daddy-real-repository-prospective-2026-11" \
+            --real-sample-max-cases 24 \
+            --real-blind-output /tmp/daddy-real-intake/blind.json \
+            --real-private-output /tmp/daddy-real-intake/model-ledger.json \
+            > /tmp/daddy-real-intake/summary.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("/tmp/daddy-real-intake")
+          blind = json.loads((p / "blind.json").read_text())
+          ledger = json.loads((p / "model-ledger.json").read_text())
+          summary = json.loads((p / "summary.json").read_text())
+          assert summary["status"] == "operator_case_packets_created"
+          assert blind["source"] == "actual_git_commit_objects_not_synthetic"
+          assert blind["model_predictions_included"] is False
+          assert all(c["label"] is None for c in blind["cases"])
+          assert len(blind["cases"]) > 0
+          assert ledger["prediction_mode"] == "no_model_report"
+          assert ledger["population"]["sampled_unflagged"] > 0
+          assert ledger["population"]["sampled_flagged"] == 0
+          assert summary["accuracy_measured"] is False
+          assert summary["human_labels_collected"] is False
+          assert summary["github_publication"] == summary["merge_action"] == "none"
+          assert (p / "blind.json").stat().st_mode & 0o077 == 0
+          assert (p / "model-ledger.json").stat().st_mode & 0o077 == 0
+          print("REAL repository source sampled from immutable Git objects; labels pending")
+          PY
