@@ -101,6 +101,7 @@ def material(tmp_path, *, with_model=True):
         "registrar_keys": registrar_registry,
         "labels": labels, "adjudicator_keys": keys,
         "evidence": evidence, "reviewer_secrets": review_secrets,
+        "registrar_secret": registrar_key,
     }
 
 
@@ -266,6 +267,33 @@ def test_registrar_key_and_review_key_cannot_be_reused(tmp_path):
     used_pub = s["registrar_keys"]["registrar-key"]["public_key_b64"]
     s["adjudicator_keys"]["independent-ada-key"]["public_key_b64"] = used_pub
     with pytest.raises(HumanVerificationError):
+        run_audit(s)
+
+
+def test_registrar_identity_cannot_sign_its_own_human_verdicts(tmp_path):
+    s = material(tmp_path)
+    registration = s["registration"]
+    registration["plan"]["frozen_reviewer_ids"] = [
+        "independent-bob", "registrar-ops",
+    ]
+    registration["signature_b64"] = base64.b64encode(
+        s["registrar_secret"].sign(registration_signing_bytes(registration))
+    ).decode("ascii")
+    s["registration_hash"] = sha256_json(registration)
+    with pytest.raises(HumanVerificationError, match="registrar"):
+        run_audit(s)
+
+
+def test_two_reviewer_names_cannot_share_one_ed25519_key(tmp_path):
+    s = material(tmp_path)
+    s["adjudicator_keys"]["independent-bob-key"]["public_key_b64"] = (
+        s["adjudicator_keys"]["independent-ada-key"]["public_key_b64"])
+    for rec in s["labels"]:
+        if rec["reviewer_id"] == "independent-bob":
+            rec["signature_b64"] = base64.b64encode(
+                s["reviewer_secrets"]["independent-ada"].sign(
+                    observation_signing_bytes(rec))).decode("ascii")
+    with pytest.raises(HumanVerificationError, match="same human adjudicator public key"):
         run_audit(s)
 
 
