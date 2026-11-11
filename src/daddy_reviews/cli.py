@@ -46,15 +46,16 @@ from .real_repository_intake import build_real_repository_intake, write_real_int
 from .real_repository_quality import audit_real_repository_labels, read_label_evidence
 from .real_repository_frame import build_opportunity_frame, write_opportunity_frame_files
 from .real_repository_frame_quality import audit_opportunity_labels
+from .study_protocol import create_study_plan, write_study_plan, audit_preregistered_study
 from .operator_artifacts import read_test_logs
 from .test_execution import verify_execution_with_github_attestation
 from .human_resolution import adjudicate_human_verification
-from .human_attestation import HumanVerificationError
+from .human_attestation import HumanVerificationError, sha256_json
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -154,6 +155,13 @@ def main(argv=None):
     parser.add_argument('--real-model-report',help='Optional completed R8.02 report for model-flagged and unflagged sampling')
     parser.add_argument('--real-blind-file',help='Frozen blind packet produced by real-sample')
     parser.add_argument('--real-private-file',help='Frozen private model ledger produced by real-sample')
+    parser.add_argument('--study-id',help='Predeclared study identifier (minimum eight characters)')
+    parser.add_argument('--study-registered-at',help='Operator-stated UTC preregistration time (requires independent anchoring)')
+    parser.add_argument('--study-reviewers',help='Comma-separated, exactly two frozen independent adjudicator IDs')
+    parser.add_argument('--study-plan-output',help='Create owner-only, non-overwriting unsigned plan for external signing')
+    parser.add_argument('--study-registration-file',help='Signed study registration with enrolled registrar')
+    parser.add_argument('--study-registration-sha256',help='Independently pinned SHA-256 of the entire signed registration')
+    parser.add_argument('--study-registrar-keys-file',help='Separate operator-owned study-registrar public key registry')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -172,7 +180,69 @@ def main(argv=None):
         parser.error('--record-model-turns is only supported by ai-investigate')
     if args.check_live_github_jobs and args.command != 'attested-test-verify':
         parser.error('--check-live-github-jobs requires attested-test-verify')
-    if args.command=='opportunity-sample':
+    if args.command=='study-plan':
+        required=(args.attestation_repo,args.attestation_repo_id,args.base,args.head,
+                  args.real_sample_seed,args.real_blind_file,args.real_private_file,
+                  args.study_id,args.study_registered_at,args.study_reviewers,
+                  args.study_plan_output)
+        if not all(value is not None and value != '' for value in required):
+            parser.error('study-plan requires pinned source, blind/private frame, two reviewer IDs and study ID/time/output')
+        try:
+            source_report=(read_operator_json(Path(args.real_model_report))
+                           if args.real_model_report else None)
+            frame=build_opportunity_frame(
+                root,repository=args.attestation_repo,
+                repository_id=args.attestation_repo_id,
+                base_commit=args.base,head_commit=args.head,
+                seed=args.real_sample_seed,max_cases=args.real_sample_max_cases,
+                report=source_report)
+            if (sha256_json(frame['blind_packet']) !=
+                    sha256_json(read_operator_json(Path(args.real_blind_file)))
+                    or sha256_json(frame['private_ledger']) !=
+                    sha256_json(read_operator_json(Path(args.real_private_file)))):
+                raise HumanVerificationError('Frozen study frame differs from immutable Git source')
+            plan=create_study_plan(
+                frame,study_id=args.study_id,
+                reviewer_ids=args.study_reviewers.split(','),
+                registered_at=args.study_registered_at)
+            data=write_study_plan(plan,Path(args.study_plan_output))
+        except (RealIntakeError,HumanVerificationError,OSError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='study-audit':
+        required=(args.attestation_repo,args.attestation_repo_id,args.base,args.head,
+                  args.real_sample_seed,args.real_blind_file,args.real_private_file,
+                  args.study_registration_file,args.study_registration_sha256,
+                  args.study_registrar_keys_file,args.label_attestations_file,
+                  args.label_trust_keys_file,args.label_evidence_dir)
+        if not all(value is not None and value != '' for value in required):
+            parser.error('study-audit requires exact source/frame, pinned signed registration, registrar/reviewer trust and SHA-256-named observation evidence')
+        try:
+            records=read_operator_json(Path(args.label_attestations_file))
+            if not isinstance(records,list):
+                raise HumanVerificationError('Study observations must be a JSON list')
+            registrar_keys=read_operator_json(
+                Path(args.study_registrar_keys_file),max_bytes=MAX_TRUST_BYTES,protected=True)
+            adjudicator_keys=read_operator_json(
+                Path(args.label_trust_keys_file),max_bytes=MAX_TRUST_BYTES,protected=True)
+            blobs=read_label_evidence(Path(args.label_evidence_dir),records)
+            source_report=(read_operator_json(Path(args.real_model_report))
+                           if args.real_model_report else None)
+            data=audit_preregistered_study(
+                root,registration=read_operator_json(Path(args.study_registration_file)),
+                expected_registration_sha256=args.study_registration_sha256,
+                blind_packet=read_operator_json(Path(args.real_blind_file)),
+                private_ledger=read_operator_json(Path(args.real_private_file)),
+                labels=records,registrar_keys=registrar_keys,
+                adjudicator_keys=adjudicator_keys,evidence_blobs=blobs,
+                repository=args.attestation_repo,
+                repository_id=args.attestation_repo_id,
+                base_commit=args.base,head_commit=args.head,
+                seed=args.real_sample_seed,max_cases=args.real_sample_max_cases,
+                report=source_report)
+        except (RealIntakeError,HumanQualityError,HumanVerificationError,
+                OSError,ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command=='opportunity-sample':
         required=(args.attestation_repo,args.attestation_repo_id,
                   args.real_sample_seed,args.real_blind_output,args.real_private_output,
                   args.base,args.head)
@@ -711,6 +781,8 @@ def main(argv=None):
     if args.command=='real-label-audit' and data['status'] == 'conflicting_human_labels_escalate':
         raise SystemExit(2)
     if args.command=='opportunity-audit' and data['status'] == 'conflicting_labels_human_escalation':
+        raise SystemExit(2)
+    if args.command=='study-audit' and data['status'] == 'pending_or_disputed_human_adjudication':
         raise SystemExit(2)
     if args.command=='attested-test-verify' and data['status'] != 'supervisor_recorded_passed_origin_authenticated':
         raise SystemExit(2)
