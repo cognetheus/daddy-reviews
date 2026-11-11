@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from daddy_reviews import cli
 from daddy_reviews.human_attestation import HumanVerificationError, sha256_json
 from daddy_reviews.real_repository_frame import build_opportunity_frame
+from daddy_reviews.real_repository_intake import RealIntakeError
 from daddy_reviews.study_protocol import (
     PLAN_FORMAT, REGISTRATION_FORMAT, RECORD_FORMAT,
     create_study_plan, registration_signing_bytes, observation_signing_bytes,
