@@ -1,0 +1,95 @@
+name: Preregistration Protocol Preview
+
+on:
+  push:
+    paths:
+      - '.github/workflows/study-preregistration-preview.yml'
+      - 'src/daddy_reviews/study_protocol.py'
+      - 'tests/test_study_protocol.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  freeze-source-study-plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install read-only Git study tooling and Ed25519 verifier
+        run: python -m pip install -e '.[verification]' pytest
+      - name: Prove signed synthetic fixture tests without claiming real humans
+        run: pytest -q tests/test_study_protocol.py
+      - name: Freeze an UNSIGNED plan from immutable repository source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/daddy-study-preview
+          chmod 700 /tmp/daddy-study-preview
+          source_commit="$(git log -1 --format=%H -- src/daddy_reviews/study_protocol.py)"
+          test -n "$source_commit"
+          base_sha="$(git rev-parse "$source_commit^")"
+          prereg_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          python -m daddy_reviews.cli opportunity-sample \
+            --root "$GITHUB_WORKSPACE" \
+            --attestation-repo "$GITHUB_REPOSITORY" \
+            --attestation-repo-id "$GITHUB_REPOSITORY_ID" \
+            --base "$base_sha" --head "$GITHUB_SHA" \
+            --real-sample-seed "daddy-preregistration-protocol-smoke-2026-11" \
+            --real-sample-max-cases 24 \
+            --real-blind-output /tmp/daddy-study-preview/blind.json \
+            --real-private-output /tmp/daddy-study-preview/private.json \
+            > /tmp/daddy-study-preview/opportunity-summary.json
+          python -m daddy_reviews.cli study-plan \
+            --root "$GITHUB_WORKSPACE" \
+            --attestation-repo "$GITHUB_REPOSITORY" \
+            --attestation-repo-id "$GITHUB_REPOSITORY_ID" \
+            --base "$base_sha" --head "$GITHUB_SHA" \
+            --real-sample-seed "daddy-preregistration-protocol-smoke-2026-11" \
+            --real-sample-max-cases 24 \
+            --real-blind-file /tmp/daddy-study-preview/blind.json \
+            --real-private-file /tmp/daddy-study-preview/private.json \
+            --study-id "daddy-preregistration-smoke-2026" \
+            --study-reviewers "synthetic-reviewer-a,synthetic-reviewer-b" \
+            --study-registered-at "$prereg_at" \
+            --study-plan-output /tmp/daddy-study-preview/plan.json \
+            > /tmp/daddy-study-preview/summary.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from daddy_reviews.human_attestation import sha256_json
+          folder = Path('/tmp/daddy-study-preview')
+          plan = json.loads((folder/'plan.json').read_text())
+          summary = json.loads((folder/'summary.json').read_text())
+          assert plan['format'] == 'daddy-reviews-preregistered-opportunity-study-v1'
+          assert plan['model_predictions_included'] is False
+          assert plan['population_accuracy_claim'] is False
+          assert plan['chronology_independently_proven'] is False
+          assert len(plan['frozen_reviewer_ids']) == 2
+          assert plan['case_count'] > 0
+          assert summary['status'] == 'study_plan_created_not_chronologically_anchored'
+          assert summary['plan_sha256'] == sha256_json(plan)
+          assert summary['registration_signed'] is False
+          assert summary['promotion_eligible'] is False
+          assert summary['merge_action'] == summary['github_publication'] == 'none'
+          assert 'model_flagged' not in (folder/'plan.json').read_text()
+          assert 'model_rules' not in (folder/'plan.json').read_text()
+          assert (folder/'plan.json').stat().st_mode & 0o077 == 0
+          print('Real Git study plan frozen; external registration/signature/humans NOT claimed')
+          PY
+      - name: Publish only UNSIGNED source plan and safe summary for registrar handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: daddy-unsigned-study-plan-preview
+          path: |
+            /tmp/daddy-study-preview/plan.json
+            /tmp/daddy-study-preview/summary.json
+          if-no-files-found: error
+          retention-days: 7
