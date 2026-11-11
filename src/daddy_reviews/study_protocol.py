@@ -407,13 +407,17 @@ def write_study_plan(plan: dict, path: Path) -> dict:
     destination = _output_path(path)
     payload = _canonical(plan) + b"\n"
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    created = False
     try:
         fd = os.open(destination, flags, 0o600)
+        created = True
         with os.fdopen(fd, "wb") as handle:
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
     except OSError as exc:
+        if created:
+            destination.unlink(missing_ok=True)
         raise HumanVerificationError("Cannot exclusively write frozen study plan") from exc
     return {
         "status": "study_plan_created_not_chronologically_anchored",
