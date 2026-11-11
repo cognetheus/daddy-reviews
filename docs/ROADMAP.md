@@ -279,4 +279,18 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Security/CI tests run genuine local Git repositories and generated synthetic label keys. No real human adjudications or factual defect truth claim is made. No reviewer promotion, merge block or PR publication is authorized.
 - See [R8.04i source opportunity frame](R8_SOURCE_OPPORTUNITY_FRAME.md).
 
-**Remaining release gates:** human reviewers must genuinely and independently adjudicate externally sourced repositories, use a precommitted scientifically valid defect opportunity sampling methodology, track inter-annotator agreement/uncertainty, and protect test/build definitions with immutable dependencies. Source-line study metrics must not be called unbiased repository-wide model recall. No CI-signed fixture is sufficient for production accuracy claims or autonomous approvals/merging.
+### R8.04j.01 — Signed predeclared study plans (delivered)
+
+- Added `study-plan` to rederive the exact R8.04i case frame from immutable Git objects before creating an owner-only, non-overwriting registration plan. It fixes the original source hashes and case IDs, a two-human adjudicator roster, three possible decisions, original private model-ledger hash, sampling parameters and conservative scoring scope.
+- A separate `study_registrar` Ed25519 identity must sign the plan; `study-audit` requires an exact independently supplied SHA-256 of the whole signed registration, then verifies registrar key/role/signature and repeats Git-object source provenance. The registration signing payload is separate from human observation signing.
+- Neither a self-declared `registered_at` field nor a local signed hash is independently trusted proof that registration predates observation. **External immutable chronological anchoring still needs to be arranged and checked by the study operator.**
+
+### R8.04j.02 — Two-reader agreement and uncertainty escalation (delivered infrastructure)
+
+- Added `study-audit`: rechecks every human-signed case against the frozen study, separate enrolled adjudicator keys, SHA-256 evidence blobs and claimed signed timestamps. The registry signer cannot also be a frozen adjudicator.
+- Accepts `defect`, `clean`, **`uncertain`**; incomplete, uncertain or conflicting adjudication makes sample metrics `null`, gives an explicit unresolved-case report and returns a nonzero CLI status. No majority voting or coercion to clean.
+- Computes raw two-rater agreement and Cohen's kappa across the three categories, including a `null` kappa for degenerate chance agreement. Only after complete non-disputed labeling does a matching model report permit unweighted, biased, added-line-only descriptive sample outcomes. Unchanged context discoveries are never counted as false negatives of a diff-only model.
+- Added real Git-based regression fixtures and separately generated test Ed25519 keys. `Preregistration Protocol Preview` GitHub Actions runs on genuinely committed source and emits **only an unsigned plan preview** and safe summary, never model flags or synthetic labels disguised as real research.
+- See [R8.04j preregistered human study](R8_PREREGISTERED_STUDY.md).
+
+**Remaining release gates:** real independent reviewers, validated blinded reproduction, externally authenticated registration chronology and source ownership, representative defect-level opportunity sampling, validated label adjudication, uncertainty accounting and held-out empirical accuracy. The infrastructure validates signatures and source integrity, **not human objectivity or defect truth**. Reviewer promotion, autonomous approvals, publishing and merge blocking remain disabled.
