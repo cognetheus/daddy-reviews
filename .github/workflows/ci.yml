@@ -74,6 +74,8 @@ jobs:
         run: pytest -q tests/test_investigation.py
       - name: Require specialist agent tool-call harness and citation regressions
         run: pytest -q tests/test_investigative_agents.py
+      - name: Require signed preregistration, two human adjudicators, uncertainty and agreement
+        run: pytest -q tests/test_study_protocol.py tests/test_study_workflow_policy.py
       - name: Require out-of-diff real Git opportunities and scope-safe signed adjudication
         run: pytest -q tests/test_real_repository_frame.py
       - name: Require actual Git-object sample, unflagged omission and blind-ledger regressions
