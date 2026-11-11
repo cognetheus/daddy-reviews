@@ -249,6 +249,8 @@ def audit_preregistered_study(root: Path, *, registration: dict,
         raise HumanVerificationError("No controlled adjudicator registry")
     case_map = {item["case_id"]: item for item in expected_plan["cases"]}
     required = tuple(plan["frozen_reviewer_ids"])
+    if registration["registrar_id"] in required:
+        raise HumanVerificationError("Study registrar cannot also be an enrolled adjudicator")
     for reviewer in required:
         if not any(isinstance(t, dict) and t.get("reviewer_id") == reviewer
                    and t.get("role") == "ground_truth_adjudicator"
