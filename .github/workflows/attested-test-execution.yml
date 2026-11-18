@@ -5,7 +5,9 @@ on:
     paths:
       - '.github/workflows/attested-test-execution.yml'
       - 'src/daddy_reviews/test_execution.py'
+      - 'src/daddy_reviews/bounded_exec.py'
       - 'tests/test_test_execution.py'
+      - 'tests/test_bounded_exec.py'
       - 'tests/test_human_quality.py'
   workflow_dispatch:
 
