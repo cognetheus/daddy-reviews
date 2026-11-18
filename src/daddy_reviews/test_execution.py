@@ -20,6 +20,7 @@ import sys
 
 from .human_attestation import HumanVerificationError
 from .operator_artifacts import _safe_regular_read
+from .bounded_exec import run_bounded
 
 FORMAT = "daddy-reviews-supervised-test-execution-v1"
 SUITE = "tests/test_human_quality.py"
@@ -78,28 +79,28 @@ def capture_fixed_ci_test(root: Path, *, repository: str, commit: str,
     start = _iso_now()
     clock = monotonic()
     command = [sys.executable, "-m", "pytest", "-q", SUITE]
-    env = {k: v for k, v in os.environ.items()
-           if not k.startswith(("GH_", "GITHUB_TOKEN", "GIT_"))
-           and k not in ("AWS_SECRET_ACCESS_KEY", "AZURE_CLIENT_SECRET", "GOOGLE_APPLICATION_CREDENTIALS",
-                         "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy",
-                         "https_proxy", "all_proxy")}
-    env.update({"PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1"})
-    try:
-        proc = subprocess.run(command, cwd=root, capture_output=True, check=False,
-                              timeout=timeout, env=env)
-        exit_code = proc.returncode
-        stdout, stderr = proc.stdout, proc.stderr
-    except subprocess.TimeoutExpired as exc:
-        exit_code = 124
-        stdout = exc.stdout or b""
-        stderr = exc.stderr or b""
-    except OSError as exc:
-        raise HumanVerificationError("Fixed test runner unavailable") from exc
-    # Truncated output cannot attest an observed successful result.
-    output_complete = len(stdout) <= MAX_OUTPUT and len(stderr) <= MAX_OUTPUT
-    if not output_complete:
-        stdout = stdout[:MAX_OUTPUT]
-        stderr = stderr[:MAX_OUTPUT]
+    # Deny all inherited cloud, GitHub, Git, proxy, credential and model keys
+    # by construction. No test subprocess gets the caller's ambient secrets.
+    from tempfile import TemporaryDirectory
+    with TemporaryDirectory(prefix="daddy-fixed-suite-") as scratch:
+        env = {
+            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            "HOME": scratch, "TMPDIR": scratch,
+            "LANG": "C.UTF-8",
+            "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1",
+            "PYTHONHASHSEED": "0",
+        }
+        try:
+            proc = run_bounded(
+                command, cwd=root, env=env, timeout=timeout,
+                max_output=MAX_OUTPUT)
+            exit_code = proc.returncode
+            stdout, stderr = proc.stdout, proc.stderr
+            output_complete = proc.output_complete
+        except OSError as exc:
+            raise HumanVerificationError("Fixed test runner unavailable") from exc
+    # Output floods and timeouts fail closed: never sign a passing report
+    # from an incomplete capture even if the launched child exits with zero.
     end = _iso_now()
     record = {
         "format": FORMAT, "repository": repository, "source_commit": commit,
