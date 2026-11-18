@@ -97,6 +97,8 @@ jobs:
         run: pytest -q tests/test_ground_truth_labels.py
       - name: Require independent authenticated GitHub completed-job checks
         run: pytest -q tests/test_github_job_status.py
+      - name: Require bounded subprocess output, deadline, and secret-denial regressions
+        run: pytest -q tests/test_bounded_exec.py tests/test_test_execution.py
       - name: Require supervised execution evidence, token isolation and attested-test CLI
         run: pytest -q tests/test_test_execution.py tests/test_attested_test_cli.py tests/test_attested_workflow_policy.py
       - name: Require offline GitHub OIDC/Sigstore artifact policy and human evidence bindings
