@@ -43,9 +43,9 @@ jobs:
           [[ "$STUDY" =~ ^[a-f0-9]{64}$ ]]
           [[ "$PAYLOAD" =~ ^[a-f0-9]{64}$ ]]
           [[ "$KIND" == "registration" || "$KIND" == "reviewer" ]]
-          if [[ "$KIND" == "registration" ]]; then
-            [[ "$STUDY" == "$PAYLOAD" ]]
-          fi
+          # Registration payload is the canonical SHA-256 of the separately
+          # frozen GitHub account-enrollment manifest. Requiring it to equal
+          # STUDY would omit the predeclared actors from the commitment.
           # No source text, person data, private key, adjudicator labels,
           # model prediction or evidence blob is uploaded or printed.
           echo "Public SHA-256 commitment validated; no human or defect truth established"
