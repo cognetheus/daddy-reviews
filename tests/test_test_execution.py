@@ -159,7 +159,7 @@ def test_real_failed_and_truncated_supervisor_reports_remain_failures(monkeypatc
     actual = payload()
     def fake_fail(*args, **kwargs):
         return subprocess.CompletedProcess(args, 1, b"failure", b"failed")
-    monkeypatch.setattr(subject.subprocess, "run", fake_fail)
+    monkeypatch.setattr(subject, "run_bounded", fake_fail)
     report = subject.capture_fixed_ci_test(
         ROOT, repository=REPO, commit=COMMIT, workflow=WF,
         run_id=919, attempt=1)
@@ -168,7 +168,7 @@ def test_real_failed_and_truncated_supervisor_reports_remain_failures(monkeypatc
         encode(report), **expect(actual))["status"] == "supervisor_recorded_failed"
     def fake_overlong(*args, **kwargs):
         return subprocess.CompletedProcess(args, 0, b"x" * (subject.MAX_OUTPUT + 1), b"")
-    monkeypatch.setattr(subject.subprocess, "run", fake_overlong)
+    monkeypatch.setattr(subject, "run_bounded", fake_overlong)
     report = subject.capture_fixed_ci_test(
         ROOT, repository=REPO, commit=COMMIT, workflow=WF,
         run_id=919, attempt=1)
@@ -177,7 +177,7 @@ def test_real_failed_and_truncated_supervisor_reports_remain_failures(monkeypatc
 
 def test_run_identity_and_missing_test_suite_rejected_before_execution(monkeypatch, tmp_path):
     invoked = []
-    monkeypatch.setattr(subject.subprocess, "run",
+    monkeypatch.setattr(subject, "run_bounded",
                         lambda *a, **kw: invoked.append((a, kw)))
     with pytest.raises(HumanVerificationError):
         subject.capture_fixed_ci_test(
