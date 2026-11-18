@@ -93,6 +93,8 @@ def _manifest(manifest: dict, plan: dict, *, require_reviewers: bool):
         raise HumanVerificationError("Invalid GitHub study anchor manifest")
     registration = _run_identity(manifest["registration"], role="registration")
     reviewers = manifest["reviewers"]
+    if not isinstance(plan.get("frozen_reviewer_ids"), list) or len(plan["frozen_reviewer_ids"]) != 2:
+        raise HumanVerificationError("No frozen two-reviewer study roster")
     if require_reviewers and len(reviewers) != 2:
         raise HumanVerificationError("Chronology requires two separately pinned reviewer runs")
     if reviewers:
@@ -115,6 +117,8 @@ def _verify_run(run: dict, *, manifest: dict, entry: dict,
     repo = manifest["anchor_repository"]
     repo_id = manifest["anchor_repository_id"]
     title = f"{RUN_NAME} | {expected_kind} | {registration_hash} | {payload_sha}"
+    if not isinstance(run, dict):
+        raise HumanVerificationError("GitHub study anchor must be a JSON object")
     parent = run.get("repository")
     head = run.get("head_repository")
     actor = run.get("actor")
@@ -176,8 +180,12 @@ def verify_study_anchor_responses(*, registration: dict, labels: list,
     expected_runs = [anchor_manifest["registration"], *reviewers]
     if not isinstance(runs, list) or len(runs) != len(expected_runs):
         raise HumanVerificationError("Incomplete GitHub Actions chronology response set")
-    if not isinstance(labels, list) or len(labels) > 320:
+    if not isinstance(labels, list) or len(labels) > 320 or any(
+            not isinstance(item, dict) for item in labels):
         raise HumanVerificationError("Study observations are invalid")
+    if not require_reviewers and reviewers:
+        raise HumanVerificationError(
+            "Registration-only validation must not silently accept unverified reviewer runs")
     when = []
     committed = []
     for index, (entry, run) in enumerate(zip(expected_runs, runs)):
@@ -200,6 +208,10 @@ def verify_study_anchor_responses(*, registration: dict, labels: list,
             "github_created_at": timestamp.isoformat().replace("+00:00", "Z"),
             "github_run_conclusion": "success",
         })
+    if require_reviewers and any(
+            item.get("reviewer_id") not in plan["frozen_reviewer_ids"]
+            for item in labels):
+        raise HumanVerificationError("Unexpected or additional reviewer observations")
     for index, entry in enumerate(reviewers, start=1):
         if when[index] <= when[0]:
             raise HumanVerificationError("Researcher receipt is not strictly later than registration")
