@@ -14,6 +14,7 @@ import pytest
 
 from daddy_reviews import cli
 from daddy_reviews.human_attestation import HumanVerificationError, sha256_json
+from daddy_reviews.real_repository_intake import RealIntakeError
 from daddy_reviews.study_github_chronology import (
     FORMAT, MANIFEST, RUN_NAME, WORKFLOW_PATH,
     create_study_github_enrollment, write_study_enrollment,
@@ -468,5 +469,5 @@ def test_enrollment_cli_saves_owner_only_digest_without_github_write(tmp_path,ca
     assert summary["enrollment_sha256"]==sha256_json(anchor_manifest(s)["enrollment"])
     assert summary["registered_on_github"] is False
     assert enrollment.stat().st_mode & 0o077 == 0
-    with pytest.raises(HumanVerificationError):
+    with pytest.raises(RealIntakeError):
         write_study_enrollment(anchor_manifest(s)["enrollment"],enrollment)
