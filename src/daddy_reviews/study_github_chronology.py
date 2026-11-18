@@ -22,6 +22,7 @@ from .study_protocol import PLAN_FORMAT, RECORD_FORMAT, REGISTRATION_FORMAT, _ut
 FORMAT = "daddy-reviews-github-study-chronology-v1"
 MANIFEST = "daddy-reviews-github-study-anchor-manifest-v1"
 RECEIPT = "daddy-reviews-study-reviewer-receipt-v1"
+ENROLLMENT = "daddy-reviews-study-github-enrollment-v1"
 WORKFLOW_PATH = ".github/workflows/study-evidence-anchor.yml"
 RUN_NAME = "Daddy Study Anchor"
 REPO = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
@@ -74,11 +75,11 @@ def _run_identity(value, *, role: str):
     return value
 
 
-def _manifest(manifest: dict, plan: dict, *, require_reviewers: bool):
+def _manifest(manifest: dict, plan: dict, *, expected_registration_sha256: str, require_reviewers: bool):
     if (not isinstance(manifest, dict)
             or set(manifest) != {
                 "format", "anchor_repository", "anchor_repository_id",
-                "workflow_id", "head_branch", "registration", "reviewers"}
+                "workflow_id", "head_branch", "enrollment", "registration", "reviewers"}
             or manifest.get("format") != MANIFEST
             or not isinstance(manifest.get("anchor_repository"), str)
             or not REPO.fullmatch(manifest["anchor_repository"])
@@ -92,6 +93,33 @@ def _manifest(manifest: dict, plan: dict, *, require_reviewers: bool):
             or len(manifest["reviewers"]) not in (0, 2)):
         raise HumanVerificationError("Invalid GitHub study anchor manifest")
     registration = _run_identity(manifest["registration"], role="registration")
+    enrollment = manifest.get("enrollment")
+    if (not isinstance(enrollment, dict)
+            or set(enrollment) != {
+                "format", "study_registration_sha256", "registrar_actor_id",
+                "reviewer_actors"}
+            or enrollment["format"] != ENROLLMENT
+            or enrollment["study_registration_sha256"] != expected_registration_sha256
+            or type(enrollment["registrar_actor_id"]) is not int
+            or enrollment["registrar_actor_id"] <= 0
+            or enrollment["registrar_actor_id"] != registration["actor_id"]
+            or not isinstance(enrollment["reviewer_actors"], list)
+            or len(enrollment["reviewer_actors"]) != 2):
+        raise HumanVerificationError("No precommitted registrar and two reviewer GitHub accounts")
+    expected_actors = {}
+    for item in enrollment["reviewer_actors"]:
+        if (not isinstance(item, dict)
+                or set(item) != {"reviewer_id", "actor_id"}
+                or not isinstance(item["reviewer_id"], str)
+                or type(item["actor_id"]) is not int
+                or item["actor_id"] <= 0
+                or item["reviewer_id"] in expected_actors):
+            raise HumanVerificationError("Malformed precommitted reviewer GitHub identities")
+        expected_actors[item["reviewer_id"]] = item["actor_id"]
+    if (sorted(expected_actors) != plan.get("frozen_reviewer_ids")
+            or len(set(expected_actors.values())) != 2
+            or enrollment["registrar_actor_id"] in expected_actors.values()):
+        raise HumanVerificationError("Enrollment does not bind the frozen independent reviewer roster")
     reviewers = manifest["reviewers"]
     if not isinstance(plan.get("frozen_reviewer_ids"), list) or len(plan["frozen_reviewer_ids"]) != 2:
         raise HumanVerificationError("No frozen two-reviewer study roster")
@@ -103,6 +131,8 @@ def _manifest(manifest: dict, plan: dict, *, require_reviewers: bool):
         if (sorted(item["reviewer_id"] for item in reviewers)
                 != plan["frozen_reviewer_ids"]
                 or len({item["actor_id"] for item in reviewers}) != 2
+                or any(item["actor_id"] != expected_actors[item["reviewer_id"]]
+                       for item in reviewers)
                 or any(item["actor_id"] == registration["actor_id"] for item in reviewers)):
             raise HumanVerificationError("GitHub identities violate frozen independent enrollment")
     anchors = [registration, *reviewers]
@@ -176,7 +206,9 @@ def verify_study_anchor_responses(*, registration: dict, labels: list,
     plan = registration["plan"]
     if plan.get("format") != PLAN_FORMAT:
         raise HumanVerificationError("Invalid signed study plan in registry")
-    reviewers = _manifest(anchor_manifest, plan, require_reviewers=require_reviewers)
+    reviewers = _manifest(anchor_manifest, plan,
+                          expected_registration_sha256=expected_registration_sha256,
+                          require_reviewers=require_reviewers)
     expected_runs = [anchor_manifest["registration"], *reviewers]
     if not isinstance(runs, list) or len(runs) != len(expected_runs):
         raise HumanVerificationError("Incomplete GitHub Actions chronology response set")
@@ -191,7 +223,7 @@ def verify_study_anchor_responses(*, registration: dict, labels: list,
     for index, (entry, run) in enumerate(zip(expected_runs, runs)):
         kind = "registration" if index == 0 else "reviewer"
         payload = (
-            expected_registration_sha256
+            sha256_json(anchor_manifest["enrollment"])
             if index == 0 else reviewer_receipt_sha256(
                 plan, labels, entry["reviewer_id"]))
         timestamp = _verify_run(
@@ -257,6 +289,7 @@ def verify_live_study_anchors(*, gh_binary: Path, gh_binary_sha256: str,
             or sha256_json(registration) != expected_registration_sha256):
         raise HumanVerificationError("Signed registration hash not independently pinned")
     reviewers = _manifest(anchor_manifest, registration["plan"],
+                          expected_registration_sha256=expected_registration_sha256,
                           require_reviewers=require_reviewers)
     binary = _verified_executable(gh_binary, gh_binary_sha256)
     repo = anchor_manifest["anchor_repository"]
