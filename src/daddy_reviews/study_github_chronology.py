@@ -62,6 +62,52 @@ def reviewer_receipt_sha256(plan: dict, labels: list, reviewer_id: str) -> str:
     })
 
 
+def create_study_github_enrollment(*, registration: dict,
+                                  expected_registration_sha256: str,
+                                  registrar_actor_id: int, reviewer_actor_ids: dict,
+                                  anchor_repository: str, anchor_repository_id: int,
+                                  workflow_id: int, head_branch: str = "main") -> dict:
+    """Freeze GitHub account mapping BEFORE the first registration run.
+
+    This enrollment digest is the registration workflow's payload_sha256.
+    A later manifest may add GitHub run IDs, but cannot alter actor identities.
+    """
+    if (not isinstance(registration, dict)
+            or registration.get("format") != REGISTRATION_FORMAT
+            or not isinstance(expected_registration_sha256, str)
+            or not SHA256.fullmatch(expected_registration_sha256)
+            or sha256_json(registration) != expected_registration_sha256
+            or not isinstance(registration.get("plan"), dict)
+            or registration["plan"].get("format") != PLAN_FORMAT
+            or type(registrar_actor_id) is not int or registrar_actor_id <= 0
+            or not isinstance(reviewer_actor_ids, dict)
+            or set(reviewer_actor_ids) != set(registration["plan"].get("frozen_reviewer_ids", []))
+            or len(reviewer_actor_ids) != 2
+            or any(type(v) is not int or v <= 0 for v in reviewer_actor_ids.values())
+            or len(set(reviewer_actor_ids.values())) != 2
+            or registrar_actor_id in reviewer_actor_ids.values()
+            or not isinstance(anchor_repository, str)
+            or not REPO.fullmatch(anchor_repository)
+            or type(anchor_repository_id) is not int or anchor_repository_id <= 0
+            or type(workflow_id) is not int or workflow_id <= 0
+            or not isinstance(head_branch, str)
+            or not BRANCH.fullmatch(head_branch)):
+        raise HumanVerificationError("Unable to pre-enroll two distinct GitHub reviewers")
+    return {
+        "format": ENROLLMENT,
+        "study_registration_sha256": expected_registration_sha256,
+        "registrar_actor_id": registrar_actor_id,
+        "reviewer_actors": [
+            {"reviewer_id": key, "actor_id": reviewer_actor_ids[key]}
+            for key in sorted(reviewer_actor_ids)
+        ],
+        "anchor_repository": anchor_repository,
+        "anchor_repository_id": anchor_repository_id,
+        "workflow_id": workflow_id,
+        "head_branch": head_branch,
+    }
+
+
 def _run_identity(value, *, role: str):
     if (not isinstance(value, dict)
             or set(value) != ({"run_id", "actor_id", "head_sha"}
@@ -97,9 +143,14 @@ def _manifest(manifest: dict, plan: dict, *, expected_registration_sha256: str, 
     if (not isinstance(enrollment, dict)
             or set(enrollment) != {
                 "format", "study_registration_sha256", "registrar_actor_id",
-                "reviewer_actors"}
+                "reviewer_actors", "anchor_repository", "anchor_repository_id",
+                "workflow_id", "head_branch"}
             or enrollment["format"] != ENROLLMENT
             or enrollment["study_registration_sha256"] != expected_registration_sha256
+            or enrollment["anchor_repository"] != manifest["anchor_repository"]
+            or enrollment["anchor_repository_id"] != manifest["anchor_repository_id"]
+            or enrollment["workflow_id"] != manifest["workflow_id"]
+            or enrollment["head_branch"] != manifest["head_branch"]
             or type(enrollment["registrar_actor_id"]) is not int
             or enrollment["registrar_actor_id"] <= 0
             or enrollment["registrar_actor_id"] != registration["actor_id"]
@@ -118,7 +169,9 @@ def _manifest(manifest: dict, plan: dict, *, expected_registration_sha256: str, 
         expected_actors[item["reviewer_id"]] = item["actor_id"]
     if (sorted(expected_actors) != plan.get("frozen_reviewer_ids")
             or len(set(expected_actors.values())) != 2
-            or enrollment["registrar_actor_id"] in expected_actors.values()):
+            or enrollment["registrar_actor_id"] in expected_actors.values()
+            or sorted(enrollment["reviewer_actors"], key=lambda x: x["reviewer_id"])
+                 != enrollment["reviewer_actors"]):
         raise HumanVerificationError("Enrollment does not bind the frozen independent reviewer roster")
     reviewers = manifest["reviewers"]
     if not isinstance(plan.get("frozen_reviewer_ids"), list) or len(plan["frozen_reviewer_ids"]) != 2:
