@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install read-only opportunity sampling tools
-        run: python -m pip install -e '.[verification]' pytest
+        run: python -m pip install --constraint ci/requirements-constraints.txt -e '.[verification]' pytest
       - name: Check actual committed-source and signed-label regression fixtures
         run: pytest -q tests/test_real_repository_frame.py
       - name: Sample repository source outside the patch, without model labels
