@@ -76,12 +76,16 @@ def assess_branch_governance(repo_data: dict | None, branch_data: dict | None,
         statuses = protection.get("required_status_checks")
         contexts = set()
         if isinstance(statuses, dict):
-            for context in statuses.get("contexts", []):
-                if isinstance(context, str):
-                    contexts.add(context)
-            for check in statuses.get("checks", []):
-                if isinstance(check, dict) and isinstance(check.get("context"), str):
-                    contexts.add(check["context"])
+            raw_contexts = statuses.get("contexts")
+            raw_checks = statuses.get("checks")
+            if isinstance(raw_contexts, list):
+                for context in raw_contexts:
+                    if isinstance(context, str):
+                        contexts.add(context)
+            if isinstance(raw_checks, list):
+                for check in raw_checks:
+                    if isinstance(check, dict) and isinstance(check.get("context"), str):
+                        contexts.add(check["context"])
         if not (isinstance(statuses, dict) and statuses.get("strict") is True
                 and set(REQUIRED_CHECKS) <= contexts):
             failures.append("required_up_to_date_ci_matrix_missing")
