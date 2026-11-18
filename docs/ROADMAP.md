@@ -325,6 +325,20 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Fixed main CI to use `permissions: contents:read` and `persist-credentials:false`. Added cross-workflow runner/token/checkout policy tests and adversarial branch-policy regression tests; full Python 3.10/3.12/3.13 CI passed.
 - See [R8.05b release governance and runner isolation](R8_RELEASE_GOVERNANCE.md).
 
-**Remaining R8.05 gates:** **administrator must actually protect `main`**, independent live admin-read policy verification, pinned transitive/runtime dependencies, secret-scope and failure-mode testing, performance/reliability evidence and protected operator-controlled release approvals. R8.06 remains a controlled human-reviewed PR pilot.
+### R8.05c.01 — Reproducible compiler and verification dependencies (implemented)
+
+- Added **SHA-512 integrity-locked TypeScript 6.0.3** npm v3 `package-lock.json` and `.npmrc` script disabling; CI now uses `npm ci`, refusing missing or inconsistent lockfiles. Integrity digest cross-checked against the published Microsoft TypeScript Server Replay lockfile.
+- Froze .NET semantic compiler SDK patch at **8.0.428** via `tooling/dotnet/global.json` with `rollForward: disable`; setup-dotnet installs the exact SDK and CI checks it before building the trusted helper.
+- Pinned Python `setuptools==80.9.0` build backend; constrained `pytest`, `cryptography`, `cffi`, and their CI transitives to known verified versions across Python 3.10/3.12/3.13. Python 3.10 uses compatible `pycparser==3.11`; newer versions use 3.12. Every GitHub Python package install now applies the shared constraints.
+- Added `tests/test_dependency_lock_policy.py` drift guard and explicit matrix job. **Python pins are version constraints, not a fully hash-locked cross-platform wheelhouse**; SDK/JDK and runner images still have external trust assumptions.
+
+### R8.05c.02 — Bounded supervised process execution (implemented)
+
+- Added `bounded_exec.py`: nonblocking `selectors` output drainage, strict per-stream memory cap, monotonic deadline, group termination on overflow/timeout and reaping, no shell and closed stdin.
+- The fixed attested-test supervisor uses an **explicit seven-variable allowlist** for its child environment, denying ambient GitHub/CI/cloud tokens and arbitrary `PYTHONPATH`, proxies and other secrets. Timeouts or truncated output cannot turn into a passing attestation.
+- Added real subprocess flood/deadline and secret-inheritance regressions in `tests/test_bounded_exec.py`, plus a named matrix CI gate.
+- These controls are **not** arbitrary untrusted-code sandboxing or proof of test correctness; they harden a fixed suite in an unprivileged GitHub-hosted job. See [R8.05c reproducible dependencies and runners](R8_REPRODUCIBLE_DEPENDENCIES_AND_RUNNERS.md).
+
+**Remaining R8.05 gates:** **administrator must actually protect `main`**, live privileged read-only policy verification, Python hash-locked wheels, pinned runtime/JDK and build environment provenance, broader compiler-adapter resource caps, reliability/latency SLOs, failover/failure-injection experiments and protected operator-controlled release approvals. R8.06 remains a controlled human-reviewed PR pilot.
 
 **No model-quality approval, production accuracy claims, autonomous PR approval, publication or merge blocking until actual independent evidence and separate release authority exist.**

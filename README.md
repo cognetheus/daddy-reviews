@@ -98,6 +98,14 @@ The original Sigstore workflow now uses three independent hosted jobs: unprivile
 
 See [R8.05b release governance and runner isolation](docs/R8_RELEASE_GOVERNANCE.md).
 
+## R8.05c — Locked dependency inputs and bounded supervisor
+
+The TypeScript semantic indexer now uses a version-locked, **SHA-512-integrity-pinned `package-lock.json`** with `npm ci --ignore-scripts`. The .NET Roslyn adapter requires exact SDK **8.0.428** without roll-forward. All CI Python verification jobs use shared, interpreter-compatible version constraints, and setuptools is pinned at the build backend. Python wheels and runner images are **not yet cryptographically locked** across platforms.
+
+The supervised fixed CI test now runs through a bounded streaming subprocess with a monotonic deadline, hard stdout/stderr size caps, group termination and an **environment variable allowlist** that excludes inherited secrets. Output floods and timed-out tests fail closed and cannot receive a passing execution receipt. This remains *runner hardening*, not a security sandbox.
+
+See [R8.05c dependency and runner documentation](docs/R8_REPRODUCIBLE_DEPENDENCIES_AND_RUNNERS.md). The unprotected `main` branch and actual independent human validation remain release blockers.
+
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
 
 **New:** run recorded *model decisions* through **real permissioned R8.01 tools** in isolated source fixtures, then score the R8.02 investigation harness for true positives, false positives, missed issues, incomplete sessions, and tool efficiency. Results include reproducible trace hashes and source-verified citation checks. A paired comparator flags deteriorating precision/recall or newly failed investigations.
