@@ -47,6 +47,7 @@ from .real_repository_quality import audit_real_repository_labels, read_label_ev
 from .real_repository_frame import build_opportunity_frame, write_opportunity_frame_files
 from .real_repository_frame_quality import audit_opportunity_labels
 from .study_protocol import create_study_plan, write_study_plan, audit_preregistered_study
+from .study_github_chronology import verify_live_study_anchors, reviewer_receipt_sha256
 from .operator_artifacts import read_test_logs
 from .test_execution import verify_execution_with_github_attestation
 from .human_resolution import adjudicate_human_verification
@@ -55,7 +56,7 @@ from .human_attestation import HumanVerificationError, sha256_json
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit','study-anchor-verify','study-review-receipt'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -162,6 +163,12 @@ def main(argv=None):
     parser.add_argument('--study-registration-file',help='Signed study registration with enrolled registrar')
     parser.add_argument('--study-registration-sha256',help='Independently pinned SHA-256 of the entire signed registration')
     parser.add_argument('--study-registrar-keys-file',help='Separate operator-owned study-registrar public key registry')
+    parser.add_argument('--study-anchor-manifest-file',
+                        help='Pinned operator manifest of registration/reviewer workflow run IDs, actor IDs and workflow source commits')
+    parser.add_argument('--require-live-study-anchors',action='store_true',
+                        help='For study-audit, require authenticated GitHub registration and both researcher receipt runs')
+    parser.add_argument('--study-reviewer-id',
+                        help='Frozen reviewer identity for signed-bundle receipt SHA-256 calculation')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -180,7 +187,48 @@ def main(argv=None):
         parser.error('--record-model-turns is only supported by ai-investigate')
     if args.check_live_github_jobs and args.command != 'attested-test-verify':
         parser.error('--check-live-github-jobs requires attested-test-verify')
-    if args.command=='study-plan':
+    if args.require_live_study_anchors and args.command != 'study-audit':
+        parser.error('--require-live-study-anchors requires study-audit')
+    if args.command=='study-review-receipt':
+        if not all((args.study_registration_file,args.study_registration_sha256,
+                    args.label_attestations_file,args.study_reviewer_id)):
+            parser.error('study-review-receipt requires signed registration, registration SHA, signed labels and one reviewer ID')
+        try:
+            registration=read_operator_json(Path(args.study_registration_file))
+            if sha256_json(registration) != args.study_registration_sha256:
+                raise HumanVerificationError('Registration changed after independent digest pinning')
+            labels=read_operator_json(Path(args.label_attestations_file))
+            data={
+                'format':'daddy-reviews-study-reviewer-receipt-v1',
+                'study_registration_sha256':args.study_registration_sha256,
+                'reviewer_id':args.study_reviewer_id,
+                'payload_sha256':reviewer_receipt_sha256(
+                    registration['plan'],labels,args.study_reviewer_id),
+                'signatures_verified_by_this_command':False,
+                'github_anchored':False,
+                'human_truth_proven':False,
+                'github_publication':'none','merge_action':'none',
+            }
+        except (HumanVerificationError,OSError,ValueError,TypeError,KeyError) as exc:
+            parser.error(str(exc))
+    elif args.command=='study-anchor-verify':
+        if not all((args.study_registration_file,args.study_registration_sha256,
+                    args.study_anchor_manifest_file,args.gh_binary,
+                    args.gh_binary_sha256)):
+            parser.error('study-anchor-verify requires signed registration, independently pinned SHA, manifest and pinned gh executable (GH_TOKEN)')
+        try:
+            registration=read_operator_json(Path(args.study_registration_file))
+            data=verify_live_study_anchors(
+                gh_binary=Path(args.gh_binary),gh_binary_sha256=args.gh_binary_sha256,
+                api_token=os.environ.get('GH_TOKEN'),
+                registration=registration,
+                labels=[],
+                anchor_manifest=read_operator_json(Path(args.study_anchor_manifest_file)),
+                expected_registration_sha256=args.study_registration_sha256,
+                require_reviewers=False)
+        except (HumanVerificationError,OSError,ValueError,TypeError,KeyError) as exc:
+            parser.error(str(exc))
+    elif args.command=='study-plan':
         required=(args.attestation_repo,args.attestation_repo_id,args.base,args.head,
                   args.real_sample_seed,args.real_blind_file,args.real_private_file,
                   args.study_id,args.study_registered_at,args.study_reviewers,
@@ -227,8 +275,9 @@ def main(argv=None):
             blobs=read_label_evidence(Path(args.label_evidence_dir),records)
             source_report=(read_operator_json(Path(args.real_model_report))
                            if args.real_model_report else None)
+            signed_registration=read_operator_json(Path(args.study_registration_file))
             data=audit_preregistered_study(
-                root,registration=read_operator_json(Path(args.study_registration_file)),
+                root,registration=signed_registration,
                 expected_registration_sha256=args.study_registration_sha256,
                 blind_packet=read_operator_json(Path(args.real_blind_file)),
                 private_ledger=read_operator_json(Path(args.real_private_file)),
@@ -239,8 +288,26 @@ def main(argv=None):
                 base_commit=args.base,head_commit=args.head,
                 seed=args.real_sample_seed,max_cases=args.real_sample_max_cases,
                 report=source_report)
+            if args.require_live_study_anchors:
+                if not all((args.study_anchor_manifest_file,args.gh_binary,
+                            args.gh_binary_sha256)):
+                    raise HumanVerificationError(
+                        'Live chronology requires --study-anchor-manifest-file, --gh-binary and --gh-binary-sha256 (GH_TOKEN)')
+                if data['status'] == 'pending_or_disputed_human_adjudication':
+                    raise HumanVerificationError(
+                        'Unresolved human decisions cannot be declared chronologically approved')
+                data['external_chronology']=verify_live_study_anchors(
+                    gh_binary=Path(args.gh_binary),
+                    gh_binary_sha256=args.gh_binary_sha256,
+                    api_token=os.environ.get('GH_TOKEN'),
+                    registration=signed_registration,labels=records,
+                    anchor_manifest=read_operator_json(Path(args.study_anchor_manifest_file)),
+                    expected_registration_sha256=args.study_registration_sha256,
+                    require_reviewers=True)
+                data['preregistration_chronology_independently_proven']=True
+                data['preregistration_chronology_basis']='GitHub_API_run_created_at_and_workflow_run_name'
         except (RealIntakeError,HumanQualityError,HumanVerificationError,
-                OSError,ValueError) as exc:
+                OSError,ValueError,TypeError,KeyError) as exc:
             parser.error(str(exc))
     elif args.command=='opportunity-sample':
         required=(args.attestation_repo,args.attestation_repo_id,
