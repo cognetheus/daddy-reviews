@@ -307,3 +307,98 @@ def test_registration_live_verification_cli_does_not_need_human_results(
     assert result["status"]=="github_registration_anchor_matched"
     assert invoked[0]["require_reviewers"] is False
     assert invoked[0]["api_token"] == "operator-github-read-token-00001"
+
+
+def _audit_cli_args(tmp_path,s):
+    folder = tmp_path / "audit-private"
+    folder.mkdir(mode=0o700)
+    files = {
+        "registration": folder / "registration.json",
+        "blind": folder / "blind.json",
+        "ledger": folder / "ledger.json",
+        "labels": folder / "labels.json",
+        "registrar": folder / "registrar.json",
+        "adjudicator": folder / "adjudicator.json",
+        "model": folder / "report.json",
+        "manifest": folder / "anchors.json",
+        "evidence": folder / "evidence",
+    }
+    files["evidence"].mkdir(mode=0o700)
+    objects = {
+        "registration": s["registration"],
+        "blind": s["frame"]["blind_packet"],
+        "ledger": s["frame"]["private_ledger"],
+        "labels": s["labels"],
+        "registrar": s["registrar_keys"],
+        "adjudicator": s["adjudicator_keys"],
+        "model": s["opts"]["report"],
+        "manifest": anchor_manifest(s),
+    }
+    for name,obj in objects.items():
+        files[name].write_text(json.dumps(obj))
+    files["registrar"].chmod(0o600)
+    files["adjudicator"].chmod(0o600)
+    for digest,payload in s["evidence"].items():
+        (files["evidence"]/digest).write_bytes(payload)
+    o=s["opts"]
+    return [
+        "study-audit","--root",str(s["root"]),
+        "--attestation-repo",o["repository"],
+        "--attestation-repo-id",str(o["repository_id"]),
+        "--base",o["base_commit"],"--head",o["head_commit"],
+        "--real-sample-seed",o["seed"],
+        "--real-sample-max-cases",str(o["max_cases"]),
+        "--real-model-report",str(files["model"]),
+        "--real-blind-file",str(files["blind"]),
+        "--real-private-file",str(files["ledger"]),
+        "--study-registration-file",str(files["registration"]),
+        "--study-registration-sha256",s["registration_hash"],
+        "--study-registrar-keys-file",str(files["registrar"]),
+        "--label-attestations-file",str(files["labels"]),
+        "--label-trust-keys-file",str(files["adjudicator"]),
+        "--label-evidence-dir",str(files["evidence"]),
+        "--study-anchor-manifest-file",str(files["manifest"]),
+        "--gh-binary","/usr/bin/gh",
+        "--gh-binary-sha256","a"*64,
+        "--require-live-study-anchors",
+    ]
+
+
+def test_combined_human_signatures_and_external_github_time_gate(
+        tmp_path,monkeypatch,capsys):
+    s=material(tmp_path)
+    args=_audit_cli_args(tmp_path,s)
+    monkeypatch.setenv("GH_TOKEN","read-only-audit-token-12345678")
+    def fake_verify(**kwargs):
+        assert kwargs["require_reviewers"] is True
+        assert len(kwargs["labels"])==2*len(s["plan"]["cases"])
+        assert kwargs["api_token"]=="read-only-audit-token-12345678"
+        return {
+            "status":"github_registration_and_two_receipts_matched",
+            "github_hosted_chronological_order_verified":True,
+            "externally_authenticated_GitHub_run_metadata":True,
+            "defect_truth_proven":False,
+            "github_publication":"none","merge_action":"none",
+        }
+    monkeypatch.setattr(cli,"verify_live_study_anchors",fake_verify)
+    cli.main(args)
+    result=json.loads(capsys.readouterr().out)
+    assert result["preregistration_chronology_independently_proven"] is True
+    assert result["external_chronology"]["status"]=="github_registration_and_two_receipts_matched"
+    assert result["sample_observations"]["biased_stratified_line_sample"]
+    assert result["factual_defect_truth_proven"] is False
+    assert result["promotion_eligible"] is False
+
+
+def test_combined_study_audit_fails_closed_on_missing_github_chronology(
+        tmp_path,monkeypatch,capsys):
+    s=material(tmp_path)
+    args=_audit_cli_args(tmp_path,s)
+    monkeypatch.delenv("GH_TOKEN",raising=False)
+    def no_github(**kwargs):
+        raise HumanVerificationError("Cannot verify GitHub-hosted preregistration")
+    monkeypatch.setattr(cli,"verify_live_study_anchors",no_github)
+    with pytest.raises(SystemExit) as exc:
+        cli.main(args)
+    assert exc.value.code==2
+    assert "Cannot verify GitHub" in capsys.readouterr().err
