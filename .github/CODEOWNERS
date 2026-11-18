@@ -1,0 +1,11 @@
+# R8.05b: CODEOWNERS only becomes an enforcement control when the
+# repository's protected default branch requires code-owner approval.
+# It is not itself evidence that branch protection is active.
+* @cognetheus
+/.github/workflows/ @cognetheus
+/.github/CODEOWNERS @cognetheus
+/src/daddy_reviews/release_governance.py @cognetheus
+/src/daddy_reviews/github_attestation.py @cognetheus
+/src/daddy_reviews/study_github_chronology.py @cognetheus
+/src/daddy_reviews/test_execution.py @cognetheus
+/pyproject.toml @cognetheus
