@@ -51,6 +51,22 @@ def test_real_subprocess_deadline_kills_sleeping_child():
     assert monotonic() - started < 4
 
 
+def test_child_exits_but_descendant_holding_output_pipes_is_killed():
+    # A shell-less process can fork a child inheriting the stdout/stderr
+    # handles, then exit early. The runner must still enforce its deadline.
+    source = (
+        "import subprocess,sys;"
+        "subprocess.Popen([sys.executable,'-c','import time;time.sleep(8)'],"
+        "stdout=sys.stdout,stderr=sys.stderr)"
+    )
+    started = monotonic()
+    result = run_child(source, timeout=1)
+    assert result.timeout_expired is True
+    assert result.output_complete is False
+    assert result.returncode == 124
+    assert monotonic() - started < 4
+
+
 def test_normal_two_pipe_output_is_complete_and_correct():
     result = run_child(
         "import sys;sys.stdout.buffer.write(b'hello');"
