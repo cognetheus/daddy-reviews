@@ -90,6 +90,14 @@ All executable GitHub workflow actions are now pinned to vetted **40-character c
 
 See [R8.05a SHA pinning audit](docs/R8_WORKFLOW_SUPPLY_CHAIN.md).
 
+## R8.05b — Protected-branch preflight and least-privilege runners
+
+`branch-governance-audit` checks live GitHub API branch security with an operator-pinned `gh` executable. It requires two approving PR reviews, CODEOWNERS, no admin bypass, strict required three-version CI, and no force pushes/deletions. **GitHub currently reports `main` as unprotected (`protected:false`) and no rulesets apply**, so production release governance remains **blocked until an administrator enables these controls**. The audit cannot and does not change settings.
+
+The original Sigstore workflow now uses three independent hosted jobs: unprivileged fixture preparation, a signer with OIDC permissions but **no checkout or shell**, and an unprivileged read-only verifier. All checkout steps disable persisted credentials; the main CI token is explicitly `contents:read`. Real Sigstore integration and full CI passed.
+
+See [R8.05b release governance and runner isolation](docs/R8_RELEASE_GOVERNANCE.md).
+
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
 
 **New:** run recorded *model decisions* through **real permissioned R8.01 tools** in isolated source fixtures, then score the R8.02 investigation harness for true positives, false positives, missed issues, incomplete sessions, and tool efficiency. Results include reproducible trace hashes and source-verified citation checks. A paired comparator flags deteriorating precision/recall or newly failed investigations.
