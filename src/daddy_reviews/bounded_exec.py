@@ -26,20 +26,22 @@ class BoundedResult:
 
 
 def _stop_group(process: subprocess.Popen) -> None:
-    if process.poll() is not None:
-        return
+    # The direct child may exit after spawning another process that keeps the
+    # stdout/stderr pipe open. Still terminate its process group on deadline.
+    # A direct-child-only poll check would leave the descendant running.
     try:
         if os.name == "posix":
             os.killpg(process.pid, signal.SIGKILL)
-        else:
+        elif process.poll() is None:
             process.kill()
     except ProcessLookupError:
         pass
     except OSError:
-        try:
-            process.kill()
-        except OSError:
-            pass
+        if process.poll() is None:
+            try:
+                process.kill()
+            except OSError:
+                pass
 
 
 def run_bounded(argv: list[str], *, cwd: Path, env: dict[str, str],
