@@ -52,13 +52,15 @@ def test_dotnet_sdk_patch_is_exact_and_fallback_forbidden():
 def test_all_workflow_verification_installs_use_same_version_constraints():
     constraints = (ROOT / "ci/requirements-constraints.txt").read_text()
     versions = {
-        "cryptography": "47.0.0", "cffi": "2.1.1", "pycparser": "3.12",
+        "cryptography": "47.0.0", "cffi": "2.1.1",
         "pytest": "9.2.0", "iniconfig": "2.3.1",
         "packaging": "26.3", "pluggy": "1.7.0", "pygments": "2.21.0",
     }
     for package, version in versions.items():
         assert re.search(r"^" + re.escape(package + "==" + version) + r"$",
                          constraints, re.MULTILINE)
+    assert 'pycparser==3.11; python_version < "3.11"' in constraints
+    assert 'pycparser==3.12; python_version >= "3.11"' in constraints
     pyproject = (ROOT / "pyproject.toml").read_text()
     assert 'requires = ["setuptools==80.9.0"]' in pyproject
     assert '"cryptography>=43,<48"' in pyproject

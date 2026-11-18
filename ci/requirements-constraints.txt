@@ -1,11 +1,12 @@
 # R8.05c.01 bounded Python 3.10 / 3.12 / 3.13 CI dependency versions.
 # Versions observed in successful GitHub Actions 2026-11-18 runs, with
-# pycparser normalized to the common 3.12 target.
+# pycparser is Python-version specific (3.11 for Python 3.10).
 # IMPORTANT: version constraints are NOT hash-locked wheel reproducibility.
 # Freeze hashes/target platform wheels in the next production build milestone.
 cryptography==47.0.0
 cffi==2.1.1
-pycparser==3.12
+pycparser==3.11; python_version < "3.11"
+pycparser==3.12; python_version >= "3.11"
 pytest==9.2.0
 iniconfig==2.3.1
 packaging==26.3
