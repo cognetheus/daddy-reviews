@@ -48,6 +48,7 @@ from .real_repository_frame import build_opportunity_frame, write_opportunity_fr
 from .real_repository_frame_quality import audit_opportunity_labels
 from .study_protocol import create_study_plan, write_study_plan, audit_preregistered_study
 from .study_github_chronology import verify_live_study_anchors, reviewer_receipt_sha256, create_study_github_enrollment, write_study_enrollment
+from .release_governance import verify_live_branch_governance
 from .operator_artifacts import read_test_logs
 from .test_execution import verify_execution_with_github_attestation
 from .human_resolution import adjudicate_human_verification
@@ -56,7 +57,7 @@ from .human_attestation import HumanVerificationError, sha256_json
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit','study-anchor-verify','study-review-receipt','study-enrollment'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit','study-anchor-verify','study-review-receipt','study-enrollment','branch-governance-audit'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -183,6 +184,8 @@ def main(argv=None):
                         help='Two frozen reviewer:numeric-GitHub-actor-ID pairs, comma separated')
     parser.add_argument('--study-enrollment-output',
                         help='New owner-only offline GitHub enrollment file, no overwrite')
+    parser.add_argument('--governance-branch',default='main',
+                        help='Explicit protected release branch; main by default')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -203,7 +206,22 @@ def main(argv=None):
         parser.error('--check-live-github-jobs requires attested-test-verify')
     if args.require_live_study_anchors and args.command != 'study-audit':
         parser.error('--require-live-study-anchors requires study-audit')
-    if args.command=='study-enrollment':
+    if args.command=='branch-governance-audit':
+        if not all((args.attestation_repo,args.attestation_repo_id,args.attestation_commit,
+                    args.gh_binary,args.gh_binary_sha256)):
+            parser.error('branch-governance-audit requires --attestation-repo, --attestation-repo-id, --attestation-commit, --gh-binary, --gh-binary-sha256 and GH_TOKEN')
+        try:
+            data=verify_live_branch_governance(
+                gh_binary=Path(args.gh_binary),
+                gh_binary_sha256=args.gh_binary_sha256,
+                api_token=os.environ.get('GH_TOKEN'),
+                expected_repo=args.attestation_repo,
+                expected_repo_id=args.attestation_repo_id,
+                expected_branch=args.governance_branch,
+                expected_commit=args.attestation_commit)
+        except (HumanVerificationError,OSError,ValueError,TypeError) as exc:
+            parser.error(str(exc))
+    elif args.command=='study-enrollment':
         required=(args.study_registration_file,args.study_registration_sha256,
                   args.study_anchor_repository,args.study_anchor_repository_id,
                   args.study_anchor_workflow_id,args.study_registrar_actor_id,
@@ -893,6 +911,8 @@ def main(argv=None):
     if args.command=='opportunity-audit' and data['status'] == 'conflicting_labels_human_escalation':
         raise SystemExit(2)
     if args.command=='study-audit' and data['status'] == 'pending_or_disputed_human_adjudication':
+        raise SystemExit(2)
+    if args.command=='branch-governance-audit' and data['status'] != 'authenticated_branch_policy_verified':
         raise SystemExit(2)
     if args.command=='attested-test-verify' and data['status'] != 'supervisor_recorded_passed_origin_authenticated':
         raise SystemExit(2)
