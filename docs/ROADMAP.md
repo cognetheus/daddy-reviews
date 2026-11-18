@@ -293,4 +293,20 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Added real Git-based regression fixtures and separately generated test Ed25519 keys. `Preregistration Protocol Preview` GitHub Actions runs on genuinely committed source and emits **only an unsigned plan preview** and safe summary, never model flags or synthetic labels disguised as real research.
 - See [R8.04j preregistered human study](R8_PREREGISTERED_STUDY.md).
 
-**Remaining release gates:** real independent reviewers, validated blinded reproduction, externally authenticated registration chronology and source ownership, representative defect-level opportunity sampling, validated label adjudication, uncertainty accounting and held-out empirical accuracy. The infrastructure validates signatures and source integrity, **not human objectivity or defect truth**. Reviewer promotion, autonomous approvals, publishing and merge blocking remain disabled.
+### R8.04k.01 — External GitHub-hosted study chronology (delivered software; live study pending)
+
+- Added a manual, read-only `study-evidence-anchor.yml` workflow that records SHA-256-only public commitments through exact GitHub Actions run titles. This allows GitHub server `created_at` timestamps to distinguish a study registration from subsequent researcher receipts.
+- `study-enrollment` predeclares the numeric GitHub account IDs of the registrar and two researchers, plus the anchor repository, numeric workflow ID, and protected branch. Their canonical digest is included as the **registration** workflow's payload, preventing post-hoc substitution of reviewer identities.
+- `study-review-receipt` generates SHA-256 of one reviewer's entire signed case bundle (without uploading source or evidence). `study-anchor-verify` independently checks the pre-review GitHub registration run using a SHA-256-pinned `gh` binary and read-only authenticated HTTPS.
+- `study-audit --require-live-study-anchors` verifies the original Git source, registrar signature, signed human observations, evidence and agreement **and** the three exact GitHub run IDs, actor IDs, workflow path, source commits, titles, successful first attempts, and GitHub-hosted chronological order. Invalid or missing evidence fails closed.
+- CI runs adversarial **synthetic** GitHub responses, real temporary Git objects and generated signing keys. The workflow requires a real registrar and two genuine separate reviewer dispatches; this has not yet occurred. No external research or real defect truth is claimed.
+- Do not grant external reviewers write access to the application repository. Prefer a dedicated **isolated study anchor repo** with protected workflows and no secrets. GitHub Actions workflow dispatch generally requires write permission, so it must not be used to onboard reviewers to production repositories.
+- See [R8.04k GitHub chronology](R8_STUDY_GITHUB_CHRONOLOGY.md).
+
+### Remaining milestones — bounded release plan
+
+- **R8.04k (human field execution):** genuinely independent reviewers, separately reproduced real-world defects, externally anchored registration before any researcher sees cases, signed evidence from both reviewers and scientific validation of uncertainty/defect-level sampling. The software cannot fabricate this evidence.
+- **R8.05 (production hardening):** audit trust roots, pin third-party workflow actions and dependencies to immutable SHAs, protect code and workflow provenance, strengthen isolation, secure storage, permission and failure-mode testing, and exercise performance/observability gates.
+- **R8.06 (controlled PR pilot and v2.0 release):** operate against real PRs with explicitly authorized human decisions, monitor false positives/misses and latency, rollback on safety regressions and establish measurable deployment readiness.
+
+**No model-quality approval, production accuracy claims, autonomous PR approval, publication or merge blocking until actual independent evidence and separate release authority exist.**
