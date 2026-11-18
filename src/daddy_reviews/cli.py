@@ -47,7 +47,7 @@ from .real_repository_quality import audit_real_repository_labels, read_label_ev
 from .real_repository_frame import build_opportunity_frame, write_opportunity_frame_files
 from .real_repository_frame_quality import audit_opportunity_labels
 from .study_protocol import create_study_plan, write_study_plan, audit_preregistered_study
-from .study_github_chronology import verify_live_study_anchors, reviewer_receipt_sha256
+from .study_github_chronology import verify_live_study_anchors, reviewer_receipt_sha256, create_study_github_enrollment, write_study_enrollment
 from .operator_artifacts import read_test_logs
 from .test_execution import verify_execution_with_github_attestation
 from .human_resolution import adjudicate_human_verification
@@ -56,7 +56,7 @@ from .human_attestation import HumanVerificationError, sha256_json
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit','study-anchor-verify','study-review-receipt'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit','study-anchor-verify','study-review-receipt','study-enrollment')
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -169,6 +169,20 @@ def main(argv=None):
                         help='For study-audit, require authenticated GitHub registration and both researcher receipt runs')
     parser.add_argument('--study-reviewer-id',
                         help='Frozen reviewer identity for signed-bundle receipt SHA-256 calculation')
+    parser.add_argument('--study-anchor-repository',
+                        help='Trusted GitHub repository where the anchoring workflow is installed')
+    parser.add_argument('--study-anchor-repository-id',type=int,
+                        help='Numeric immutable GitHub anchor repository ID')
+    parser.add_argument('--study-anchor-workflow-id',type=int,
+                        help='Numeric GitHub workflow ID for study-evidence-anchor.yml')
+    parser.add_argument('--study-anchor-branch',default='main',
+                        help='Pinned protected workflow branch; defaults to main')
+    parser.add_argument('--study-registrar-actor-id',type=int,
+                        help='Predeclared GitHub numeric account ID for the study registrar')
+    parser.add_argument('--study-reviewer-actors',
+                        help='Two frozen reviewer:numeric-GitHub-actor-ID pairs, comma separated')
+    parser.add_argument('--study-enrollment-output',
+                        help='New owner-only offline GitHub enrollment file, no overwrite')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -189,7 +203,36 @@ def main(argv=None):
         parser.error('--check-live-github-jobs requires attested-test-verify')
     if args.require_live_study_anchors and args.command != 'study-audit':
         parser.error('--require-live-study-anchors requires study-audit')
-    if args.command=='study-review-receipt':
+    if args.command=='study-enrollment':
+        required=(args.study_registration_file,args.study_registration_sha256,
+                  args.study_anchor_repository,args.study_anchor_repository_id,
+                  args.study_anchor_workflow_id,args.study_registrar_actor_id,
+                  args.study_reviewer_actors,args.study_enrollment_output)
+        if not all(value is not None and value != '' for value in required):
+            parser.error('study-enrollment requires signed registration, independent SHA, anchor repo/ID/workflow ID and two reviewer numeric account IDs')
+        try:
+            mapping={}
+            for pair in args.study_reviewer_actors.split(','):
+                reviewer_id,sep,actor=pair.partition(':')
+                if not sep or reviewer_id in mapping:
+                    raise HumanVerificationError('Expected exactly two unique reviewer:numeric-id pairs')
+                mapping[reviewer_id]=int(actor)
+            registration=read_operator_json(Path(args.study_registration_file))
+            enrollment=create_study_github_enrollment(
+                registration=registration,
+                expected_registration_sha256=args.study_registration_sha256,
+                registrar_actor_id=args.study_registrar_actor_id,
+                reviewer_actor_ids=mapping,
+                anchor_repository=args.study_anchor_repository,
+                anchor_repository_id=args.study_anchor_repository_id,
+                workflow_id=args.study_anchor_workflow_id,
+                head_branch=args.study_anchor_branch)
+            data=write_study_enrollment(
+                enrollment,Path(args.study_enrollment_output))
+        except (HumanVerificationError,RealIntakeError,OSError,ValueError,
+                TypeError,KeyError) as exc:
+            parser.error(str(exc))
+    elif args.command=='study-review-receipt':
         if not all((args.study_registration_file,args.study_registration_sha256,
                     args.label_attestations_file,args.study_reviewer_id)):
             parser.error('study-review-receipt requires signed registration, registration SHA, signed labels and one reviewer ID')
