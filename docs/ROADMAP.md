@@ -316,6 +316,15 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Pinned checkout, setup-python, setup-java, setup-dotnet, setup-node, upload-artifact, download-artifact and Sigstore attest. Existing least-privilege and blind-artifact regression checks remain in place.
 - These pins prevent silent tag redirection, not transitive dependency compromise or changes in the trust/release authority. See [R8.05a workflow supply-chain pins](R8_WORKFLOW_SUPPLY_CHAIN.md).
 
-**Remaining R8.05 gates:** GitHub branch/workflow protection and runner authorization audit, pinned transitive dependencies, secret-scope and failure-mode testing, performance/reliability evidence and protected release controls. R8.06 remains a controlled human-reviewed PR pilot.
+### R8.05b — Live branch-governance audit and OIDC runner isolation (implemented; admin protection blocked)
+
+- Added `branch-governance-audit` CLI and `release_governance.py`: authenticates an exact repository/branch/current-commit snapshot using a SHA-256-pinned `gh` binary and an operator-provided read-only token. Requires 2 approving PR reviews, stale-review dismissal, CODEOWNERS, administrator enforcement, strict up-to-date Python 3.10/3.12/3.13 CI checks, conversation resolution and disabled force pushes/deletions. Missing or inaccessible branch-protection API evidence returns a nonzero release-blocked result.
+- GitHub's own `GET branches/main` currently reports **`protected:false`** for `cognetheus/daddy-reviews`; applicable rulesets query returned `[]`. Branch-protection detailed endpoint returned HTTP 403 through this GitHub App. **Do not claim production branch governance until the administrator enables actual protection and a privileged read-only audit confirms it.**
+- Added `.github/CODEOWNERS` for the workflows, security source and dependency configuration; it becomes enforceable only after GitHub requires code-owner reviews.
+- Refactored original Sigstore attestation integration into three separate jobs: unprivileged fixture producer, **OIDC-only signer without checkout/Python/shell**, and unprivileged verifier. Real hosted GitHub Actions integration passed.
+- Fixed main CI to use `permissions: contents:read` and `persist-credentials:false`. Added cross-workflow runner/token/checkout policy tests and adversarial branch-policy regression tests; full Python 3.10/3.12/3.13 CI passed.
+- See [R8.05b release governance and runner isolation](R8_RELEASE_GOVERNANCE.md).
+
+**Remaining R8.05 gates:** **administrator must actually protect `main`**, independent live admin-read policy verification, pinned transitive/runtime dependencies, secret-scope and failure-mode testing, performance/reliability evidence and protected operator-controlled release approvals. R8.06 remains a controlled human-reviewed PR pilot.
 
 **No model-quality approval, production accuracy claims, autonomous PR approval, publication or merge blocking until actual independent evidence and separate release authority exist.**
