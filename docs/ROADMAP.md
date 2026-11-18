@@ -309,4 +309,13 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - **R8.05 (production hardening):** audit trust roots, pin third-party workflow actions and dependencies to immutable SHAs, protect code and workflow provenance, strengthen isolation, secure storage, permission and failure-mode testing, and exercise performance/observability gates.
 - **R8.06 (controlled PR pilot and v2.0 release):** operate against real PRs with explicitly authorized human decisions, monitor false positives/misses and latency, rollback on safety regressions and establish measurable deployment readiness.
 
+### R8.05a — Immutable GitHub Actions dependency pins (delivered)
+
+- Audited GitHub's upstream source Git refs and replaced all executable `uses: actions/*@vMAJOR` references with **full 40-character immutable commit hashes** in the repository's workflows, including the OIDC-only signing workflow and read-only registration workflow.
+- Added repository-wide CI guard `tests/test_workflow_sha_pins.py` to reject mutable refs, unknown actions, and unexpected upstream SHA changes, while retaining readable version comments.
+- Pinned checkout, setup-python, setup-java, setup-dotnet, setup-node, upload-artifact, download-artifact and Sigstore attest. Existing least-privilege and blind-artifact regression checks remain in place.
+- These pins prevent silent tag redirection, not transitive dependency compromise or changes in the trust/release authority. See [R8.05a workflow supply-chain pins](R8_WORKFLOW_SUPPLY_CHAIN.md).
+
+**Remaining R8.05 gates:** GitHub branch/workflow protection and runner authorization audit, pinned transitive dependencies, secret-scope and failure-mode testing, performance/reliability evidence and protected release controls. R8.06 remains a controlled human-reviewed PR pilot.
+
 **No model-quality approval, production accuracy claims, autonomous PR approval, publication or merge blocking until actual independent evidence and separate release authority exist.**

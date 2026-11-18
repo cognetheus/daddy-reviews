@@ -84,6 +84,12 @@ Use the developer APIs in `daddy_reviews.verification_queue`, `daddy_reviews.ind
 
 See [R8.04a queue](docs/R8_VERIFICATION_QUEUE.md), [R8.04b challenge](docs/R8_INDEPENDENT_CHALLENGE.md), [R8.04c human attestation](docs/R8_HUMAN_VERIFICATION.md), [R8.04d operator workflow](docs/R8_OPERATOR_WORKFLOW.md), [R8.04d evaluation](docs/R8_HUMAN_QUALITY.md), [R8.04e GitHub/Sigstore verification](docs/R8_GITHUB_ATTESTATION.md), [R8.04f supervised test execution](docs/R8_SUPERVISED_TEST_EXECUTION.md), [R8.04g independent jobs and labels](docs/R8_GITHUB_JOBS_AND_LABELS.md), [R8.04h real-repository study protocol](docs/R8_REAL_REPOSITORY_EVALUATION.md), [R8.04i opportunity frame](docs/R8_SOURCE_OPPORTUNITY_FRAME.md), [R8.04j registered-study protocol](docs/R8_PREREGISTERED_STUDY.md), and [R8.04k GitHub study chronology](docs/R8_STUDY_GITHUB_CHRONOLOGY.md). Real external human adjudication and production-model accuracy validation are still open.
 
+## R8.05a — Immutable GitHub Actions supply-chain hardening
+
+All executable GitHub workflow actions are now pinned to vetted **40-character commit SHAs** instead of mutable major-version tags. CI enforces a complete allowlist of approved upstream SHA references, including the Actions OIDC signer and the three-job test provenance chain. This reduces tag-redirection risk but does not establish real-world defect truth, branch protections or complete runtime supply-chain assurance.
+
+See [R8.05a SHA pinning audit](docs/R8_WORKFLOW_SUPPLY_CHAIN.md).
+
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
 
 **New:** run recorded *model decisions* through **real permissioned R8.01 tools** in isolated source fixtures, then score the R8.02 investigation harness for true positives, false positives, missed issues, incomplete sessions, and tool efficiency. Results include reproducible trace hashes and source-verified citation checks. A paired comparator flags deteriorating precision/recall or newly failed investigations.
