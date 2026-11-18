@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install read-only actual Git-object collector
-        run: python -m pip install -e . pytest
+        run: python -m pip install --constraint ci/requirements-constraints.txt -e . pytest
       - name: Run adversarial repository-intake tests
         run: pytest -q tests/test_real_repository_intake.py
       - name: Sample actual source from pinned immutable Git commits
