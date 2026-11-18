@@ -96,7 +96,10 @@ def capture_fixed_ci_test(root: Path, *, repository: str, commit: str,
                 max_output=MAX_OUTPUT)
             exit_code = proc.returncode
             stdout, stderr = proc.stdout, proc.stderr
-            output_complete = proc.output_complete
+            output_complete = (getattr(proc, "output_complete", True)
+                               and len(stdout) <= MAX_OUTPUT and len(stderr) <= MAX_OUTPUT)
+            if not output_complete:
+                stdout, stderr = stdout[:MAX_OUTPUT], stderr[:MAX_OUTPUT]
         except OSError as exc:
             raise HumanVerificationError("Fixed test runner unavailable") from exc
     # Output floods and timeouts fail closed: never sign a passing report
