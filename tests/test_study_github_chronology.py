@@ -13,9 +13,10 @@ import subprocess
 import pytest
 
 from daddy_reviews import cli
-from daddy_reviews.human_attestation import HumanVerificationError
+from daddy_reviews.human_attestation import HumanVerificationError, sha256_json
 from daddy_reviews.study_github_chronology import (
     FORMAT, MANIFEST, RUN_NAME, WORKFLOW_PATH,
+    create_study_github_enrollment, write_study_enrollment,
     reviewer_receipt_sha256, verify_study_anchor_responses,
     verify_live_study_anchors,
 )
@@ -32,8 +33,16 @@ REVIEW_DATE = "2026-11-11T17:00:00Z"
 
 def anchor_manifest(s, *, reviewers=True):
     pair = s["plan"]["frozen_reviewer_ids"]
+    enrollment = create_study_github_enrollment(
+        registration=s["registration"],
+        expected_registration_sha256=s["registration_hash"],
+        registrar_actor_id=101,
+        reviewer_actor_ids={pair[0]:102, pair[1]:103},
+        anchor_repository=REPO,anchor_repository_id=REPO_ID,
+        workflow_id=WF_ID,head_branch="main")
     return {
         "format": MANIFEST,
+        "enrollment":enrollment,
         "anchor_repository": REPO,
         "anchor_repository_id": REPO_ID,
         "workflow_id": WF_ID,
@@ -75,7 +84,7 @@ def server_runs(s, manifest, *, reviewers=True):
     sha = s["registration_hash"]
     runs = [
         run_record(manifest, manifest["registration"], kind="registration",
-                   study_sha=sha, payload=sha, created=REG_DATE)
+                   study_sha=sha, payload=sha256_json(manifest["enrollment"]), created=REG_DATE)
     ]
     if reviewers:
         for entry in manifest["reviewers"]:
@@ -402,3 +411,62 @@ def test_combined_study_audit_fails_closed_on_missing_github_chronology(
         cli.main(args)
     assert exc.value.code==2
     assert "Cannot verify GitHub" in capsys.readouterr().err
+
+
+def test_precommitted_enrollment_freezes_github_accounts_before_run(tmp_path):
+    s=material(tmp_path)
+    manifest=anchor_manifest(s)
+    enrollment=manifest["enrollment"]
+    assert enrollment["registrar_actor_id"]==101
+    assert [x["actor_id"] for x in enrollment["reviewer_actors"]]==[102,103]
+    assert enrollment["workflow_id"]==WF_ID
+    assert enrollment["anchor_repository"]==REPO
+    assert enrollment["study_registration_sha256"]==s["registration_hash"]
+    report=check(s,manifest)
+    assert report["server_observed_commitments"][0]["payload_sha256"]==sha256_json(enrollment)
+
+
+@pytest.mark.parametrize("modified",[
+    lambda m: m["enrollment"]["reviewer_actors"][0].update(actor_id=888),
+    lambda m: m["enrollment"].update(registrar_actor_id=777),
+    lambda m: m["enrollment"].update(anchor_repository="attacker/repo"),
+    lambda m: m["enrollment"].update(workflow_id=5),
+    lambda m: m["enrollment"].update(head_branch="evil"),
+    lambda m: m["enrollment"].update(study_registration_sha256="0"*64),
+])
+def test_posthoc_enrollment_identity_changes_fail_closed(tmp_path,modified):
+    s=material(tmp_path)
+    manifest=anchor_manifest(s)
+    runs=server_runs(s,manifest)
+    modified(manifest)
+    with pytest.raises(HumanVerificationError):
+        check(s,manifest,runs)
+
+
+def test_enrollment_cli_saves_owner_only_digest_without_github_write(tmp_path,capsys):
+    s=material(tmp_path)
+    folder=tmp_path/"private-enrollment"
+    folder.mkdir(mode=0o700)
+    registration=folder/"registration.json"
+    enrollment=folder/"enrollment.json"
+    registration.write_text(json.dumps(s["registration"]))
+    pair=s["plan"]["frozen_reviewer_ids"]
+    cli.main([
+        "study-enrollment","--root",str(tmp_path),
+        "--study-registration-file",str(registration),
+        "--study-registration-sha256",s["registration_hash"],
+        "--study-anchor-repository",REPO,
+        "--study-anchor-repository-id",str(REPO_ID),
+        "--study-anchor-workflow-id",str(WF_ID),
+        "--study-anchor-branch","main",
+        "--study-registrar-actor-id","101",
+        "--study-reviewer-actors",f"{pair[0]}:102,{pair[1]}:103",
+        "--study-enrollment-output",str(enrollment),
+    ])
+    summary=json.loads(capsys.readouterr().out)
+    assert summary["status"]=="enrollment_digest_ready_not_github_anchored"
+    assert summary["enrollment_sha256"]==sha256_json(anchor_manifest(s)["enrollment"])
+    assert summary["registered_on_github"] is False
+    assert enrollment.stat().st_mode & 0o077 == 0
+    with pytest.raises(HumanVerificationError):
+        write_study_enrollment(anchor_manifest(s)["enrollment"],enrollment)
