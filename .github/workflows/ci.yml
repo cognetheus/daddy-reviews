@@ -2,6 +2,10 @@ name: CI
 on:
   push:
   pull_request:
+
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -11,6 +15,8 @@ jobs:
         python-version: ['3.10', '3.12', '3.13']
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
         with:
           fetch-depth: 0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -74,6 +80,8 @@ jobs:
         run: pytest -q tests/test_investigation.py
       - name: Require specialist agent tool-call harness and citation regressions
         run: pytest -q tests/test_investigative_agents.py
+      - name: Require protected release governance and workflow privilege isolation
+        run: pytest -q tests/test_release_governance.py tests/test_sigstore_job_isolation.py tests/test_ci_runner_security.py
       - name: Require external GitHub registration and human receipt chronology policy
         run: pytest -q tests/test_study_github_chronology.py tests/test_study_anchor_workflow_policy.py
       - name: Require signed preregistration, two human adjudicators, uncertainty and agreement
