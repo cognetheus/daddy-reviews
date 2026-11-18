@@ -11,7 +11,7 @@ def test_ci_exports_unsigned_plan_only_never_model_predictions_or_evidence():
     assert marker in source
     earlier, publication = source.split(marker, 1)
     assert "actions/upload-artifact" not in earlier
-    assert "actions/upload-artifact@v4" in publication
+    assert "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02" in publication
     assert "name: daddy-unsigned-study-plan-preview" in publication
     assert "/tmp/daddy-study-preview/plan.json" in publication
     assert "/tmp/daddy-study-preview/summary.json" in publication

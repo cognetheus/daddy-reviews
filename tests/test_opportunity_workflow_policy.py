@@ -11,7 +11,7 @@ def test_workflow_exports_only_blind_packet_and_safe_summary():
     assert anchor in source
     before, publish = source.split(anchor, 1)
     assert "actions/upload-artifact" not in before
-    assert "actions/upload-artifact@v4" in publish
+    assert "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02" in publish
     assert "name: daddy-blind-opportunity-frame" in publish
     assert "/tmp/daddy-opportunity-intake/blind.json" in publish
     assert "/tmp/daddy-opportunity-intake/summary.json" in publish

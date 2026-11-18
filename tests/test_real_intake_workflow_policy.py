@@ -10,7 +10,7 @@ def test_only_blind_source_cases_are_uploaded_for_human_review():
     marker = "      - name: Publish ONLY blind source packet and operator-safe summary"
     assert marker in text
     publication = text.split(marker, 1)[1]
-    assert "actions/upload-artifact@v4" in publication
+    assert "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02" in publication
     assert "name: daddy-blind-real-source-cases" in publication
     assert "/tmp/daddy-real-intake/blind.json" in publication
     assert "/tmp/daddy-real-intake/summary.json" in publication

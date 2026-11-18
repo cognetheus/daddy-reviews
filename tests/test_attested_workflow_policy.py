@@ -23,8 +23,8 @@ def test_oidc_signer_job_has_no_repository_checkout_shell_install_or_python():
     sign = _section(text, "sign-only", "verify-attested")
     assert "id-token: write" in sign
     assert "attestations: write" in sign
-    assert "actions/download-artifact@v4" in sign
-    assert "actions/attest@v4" in sign
+    assert "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093" in sign
+    assert "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6" in sign
     active = "\\n".join(line for line in sign.splitlines()
                        if not line.lstrip().startswith("#"))
     assert "actions/checkout" not in active
