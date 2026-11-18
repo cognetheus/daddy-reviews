@@ -13,7 +13,7 @@ TRUSTED = {
   "actions/download-artifact": "d3f86a106a0bac45b974a628896c90dbdf5c8093",
   "actions/attest": "1e69f48acb82d1966a394da916b4c1698aa569d6"
 }
-REFERENCE = re.compile(r"^\s*-\s*uses:\s*(\S+)", re.MULTILINE)
+REFERENCE = re.compile(r"^\s*(?:-\s*)?uses:\s*(\S+)", re.MULTILINE)
 
 
 def test_every_action_is_pinned_to_vetted_40_char_commit():
