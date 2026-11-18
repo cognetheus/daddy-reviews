@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -18,6 +19,7 @@ import tempfile
 from .github_job_status import _json_object, _verified_executable
 from .human_attestation import HumanVerificationError, sha256_json
 from .study_protocol import PLAN_FORMAT, RECORD_FORMAT, REGISTRATION_FORMAT, _utc
+from .real_repository_intake import _output_path
 
 FORMAT = "daddy-reviews-github-study-chronology-v1"
 MANIFEST = "daddy-reviews-github-study-anchor-manifest-v1"
@@ -373,3 +375,41 @@ def verify_live_study_anchors(*, gh_binary: Path, gh_binary_sha256: str,
         require_reviewers=require_reviewers)
     result["externally_authenticated_GitHub_run_metadata"] = True
     return result
+
+
+def write_study_enrollment(enrollment: dict, path: Path) -> dict:
+    """Exclusive owner-only offline handoff; never publishes to GitHub.
+
+    Only the canonical SHA-256 needs to be submitted as the GitHub
+    registration-run payload. Run IDs are added to the manifest later.
+    """
+    if (not isinstance(enrollment, dict) or enrollment.get("format") != ENROLLMENT
+            or not isinstance(enrollment.get("reviewer_actors"), list)
+            or len(enrollment["reviewer_actors"]) != 2):
+        raise HumanVerificationError("Not a complete frozen enrollment document")
+    destination = _output_path(path)
+    payload = (json.dumps(enrollment, sort_keys=True,
+                          separators=(",", ":"), ensure_ascii=False) + "\n").encode()
+    if len(payload) > 8_192:
+        raise HumanVerificationError("Study enrollment unexpectedly oversized")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    created = False
+    try:
+        fd = os.open(destination, flags, 0o600)
+        created = True
+        with os.fdopen(fd, "wb") as out:
+            out.write(payload)
+            out.flush()
+            os.fsync(out.fileno())
+    except OSError as exc:
+        if created:
+            destination.unlink(missing_ok=True)
+        raise HumanVerificationError("Unable to save owner-only frozen enrollment") from exc
+    return {
+        "format": ENROLLMENT, "status": "enrollment_digest_ready_not_github_anchored",
+        "registration_sha256": enrollment["study_registration_sha256"],
+        "enrollment_sha256": sha256_json(enrollment),
+        "registered_on_github": False,
+        "reviewers_predeclared": 2,
+        "github_publication": "none", "merge_action": "none",
+    }
