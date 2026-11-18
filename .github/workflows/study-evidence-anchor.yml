@@ -1,0 +1,51 @@
+name: Daddy Study Evidence Anchor
+
+# The exact commitment becomes part of a GitHub-hosted run display title.
+# GitHub's created_at is the useful external chronology signal, not a
+# self-declared signed_at timestamp in a researcher's JSON.
+run-name: Daddy Study Anchor | ${{ inputs.kind }} | ${{ inputs.study_sha256 }} | ${{ inputs.payload_sha256 }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: registration (first) or reviewer (each signed reviewer bundle)
+        required: true
+        type: choice
+        options:
+          - registration
+          - reviewer
+      study_sha256:
+        description: Independently pinned canonical SHA-256 of signed study registration
+        required: true
+        type: string
+      payload_sha256:
+        description: Registration SHA or SHA-256 of one reviewer's signed bundle
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify-public-digest-shape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check exact SHA-256 input shape and registration equality
+        env:
+          KIND: ${{ inputs.kind }}
+          STUDY: ${{ inputs.study_sha256 }}
+          PAYLOAD: ${{ inputs.payload_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$STUDY" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$PAYLOAD" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$KIND" == "registration" || "$KIND" == "reviewer" ]]
+          if [[ "$KIND" == "registration" ]]; then
+            [[ "$STUDY" == "$PAYLOAD" ]]
+          fi
+          # No source text, person data, private key, adjudicator labels,
+          # model prediction or evidence blob is uploaded or printed.
+          echo "Public SHA-256 commitment validated; no human or defect truth established"
