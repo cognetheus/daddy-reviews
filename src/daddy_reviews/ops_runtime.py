@@ -16,6 +16,7 @@ import tracemalloc
 from time import perf_counter_ns
 
 from .bounded_exec import run_bounded
+from .ops_recovery import RetryDecision, retry_classified_read_only
 from .diff import DiffError, parse_diff
 from .ops_telemetry import make_event, OperationalError
 from .review import review_patch
@@ -148,6 +149,34 @@ def probe_supervisor_faults(root: Path) -> dict:
         events.append(make_event("supervisor_fault_probe",
                                  "ok" if valid else "failure",
                                  min(elapsed, 120_000)))
+    # Idempotent transient probe: first call exits with a known synthetic
+    # retryable code, the second succeeds. No workspace/source writes.
+    def read_only_probe(attempt):
+        source = ("import sys;sys.exit(75)" if attempt == 1
+                  else "import sys;sys.exit(0)")
+        result = run_bounded(
+            [sys.executable, "-c", source], cwd=root, env=env,
+            timeout=2, max_output=1024)
+        if result.output_complete and not result.timeout_expired:
+            if result.returncode == 0:
+                return RetryDecision("ok")
+            if result.returncode == 75:
+                return RetryDecision("retryable")
+        return RetryDecision("permanent")
+
+    recovery = retry_classified_read_only(
+        read_only_probe, operation="fixed_health_probe",
+        max_attempts=3, base_backoff_ms=10, total_budget_ms=2000)
+    recovered = (recovery.status == "recovered"
+                 and recovery.attempts == 2 and recovery.retry_count == 1)
+    observed.append({
+        "scenario": "transient_read_only_recovery",
+        "expected_failure_detected": recovered,
+        "elapsed_ms": min(recovery.elapsed_ms, 120_000),
+    })
+    events.append(make_event("supervisor_fault_probe",
+                             "ok" if recovered else "failure",
+                             min(recovery.elapsed_ms, 120_000)))
     return {
         "format": FAULT,
         "status": ("failure_controls_verified" if all(
