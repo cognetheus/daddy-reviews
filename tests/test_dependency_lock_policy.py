@@ -70,6 +70,11 @@ def test_all_workflow_verification_installs_use_same_version_constraints():
         lines = (line.strip() for line in data.splitlines())
         for line in lines:
             if "python -m pip install" in line and not line.startswith("#"):
-                assert "--constraint ci/requirements-constraints.txt" in line, path
+                if path.name == "advisory-pr-pilot.yml":
+                    assert "--constraint daddy-tools/ci/requirements-constraints.txt" in line
+                    assert "-e './daddy-tools[verification]'" in line
+                    assert "-e ./pr-source" not in line
+                else:
+                    assert "--constraint ci/requirements-constraints.txt" in line, path
                 total += 1
     assert total >= 6

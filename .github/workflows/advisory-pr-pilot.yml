@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
-# No pull_request_target, secrets, deployment, OIDC, posting or merging.
+# No privileged PR-target event, credentials, deployment, OIDC, posting or merging.
 permissions:
   contents: read
   pull-requests: read
