@@ -23,7 +23,7 @@ class PilotCohortError(ValueError):
 
 
 def _valid(summary):
-    if not isinstance(summary, dict) or set(summary) != {
+    required = {
         "format", "status", "repository", "repository_numeric_id",
         "pr_number", "head_commit", "base_commit", "patch_sha256",
         "changed_file_count", "added_lines", "deleted_lines",
@@ -32,8 +32,18 @@ def _valid(summary):
         "human_findings_verified", "human_review_required",
         "pr_comments_posted", "merge_action", "production_approval_granted",
         "source_text_in_summary", "retrieval_method",
-    }:
+    }
+    private_digest = {"private_evidence_saved", "private_evidence_sha256",
+                      "private_evidence_not_published"}
+    if (not isinstance(summary, dict)
+            or set(summary) not in (required, required | private_digest)):
         raise PilotCohortError("Pilot observation must have exact source-free schema")
+    if private_digest <= set(summary):
+        if (summary["private_evidence_saved"] is not True
+                or summary["private_evidence_not_published"] is not True
+                or not isinstance(summary["private_evidence_sha256"], str)
+                or not DIGEST.fullmatch(summary["private_evidence_sha256"])):
+            raise PilotCohortError("Invalid private-review receipt in safe pilot summary")
     numbers = ("repository_numeric_id", "pr_number", "changed_file_count",
                "added_lines", "deleted_lines", "candidate_findings",
                "review_elapsed_ms", "verified_defects", "pr_comments_posted")
