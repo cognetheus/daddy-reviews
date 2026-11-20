@@ -106,6 +106,18 @@ The supervised fixed CI test now runs through a bounded streaming subprocess wit
 
 See [R8.05c dependency and runner documentation](docs/R8_REPRODUCIBLE_DEPENDENCIES_AND_RUNNERS.md). The unprotected `main` branch and actual independent human validation remain release blockers.
 
+## R8.05d — Operational readiness and incident controls
+
+`ops-preflight` now runs actual read-only review benchmarks, five fixed fault-injection/recovery scenarios, static workflow security checks and closed-schema operational telemetry in one source-pinned report. It measures review p95 and Python-traced allocations, with explicit *candidate* thresholds; it does not enforce a kernel-level RSS or CPU limit, establish production SLOs, or transmit external alerts.
+
+```bash
+daddy-reviews ops-preflight --root . --base HEAD~1 --head HEAD --ops-samples 2 > ops-summary.json
+daddy-reviews ops-security --root .
+daddy-reviews ops-readiness --root . --ops-evidence-file ops-summary.json
+```
+
+The final `ops-readiness` command **always exits nonzero**, even if local probes pass, because genuine human defect validation, GitHub branch protection and authorized pilot evidence still require external verification. An independent GitHub operational-preview workflow runs real-source checks and exports only bounded, source-free local summary metadata; CI and adversarial tests protect the no-release boundary. See [R8.05d operations runbook](docs/R8_OPERATIONAL_READINESS.md).
+
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
 
 **New:** run recorded *model decisions* through **real permissioned R8.01 tools** in isolated source fixtures, then score the R8.02 investigation harness for true positives, false positives, missed issues, incomplete sessions, and tool efficiency. Results include reproducible trace hashes and source-verified citation checks. A paired comparator flags deteriorating precision/recall or newly failed investigations.

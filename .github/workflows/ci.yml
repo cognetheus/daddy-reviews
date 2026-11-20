@@ -82,7 +82,7 @@ jobs:
       - name: Require specialist agent tool-call harness and citation regressions
         run: pytest -q tests/test_investigative_agents.py
       - name: Require production reliability budgets, failure injection and no-release operational gates
-        run: pytest -q tests/test_ops_runtime.py tests/test_ops_telemetry.py tests/test_ops_security.py tests/test_ops_readiness.py tests/test_ops_workflow_policy.py
+        run: pytest -q tests/test_ops_runtime.py tests/test_ops_recovery.py tests/test_ops_telemetry.py tests/test_ops_security.py tests/test_ops_readiness.py tests/test_ops_workflow_policy.py
       - name: Require reproducible compiler and verification dependency inputs
         run: pytest -q tests/test_dependency_lock_policy.py
       - name: Require protected release governance and workflow privilege isolation

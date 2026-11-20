@@ -31,6 +31,8 @@ def test_real_source_ops_workflow_is_read_only_and_does_not_publish_source():
 def test_release_remains_nonzero_even_when_local_probes_pass():
     text = FILE.read_text(encoding="utf-8")
     assert "ops-preflight" in text
+    assert "tests/test_ops_recovery.py" in text
+    assert "result['fault_injection']['scenario_count']==5" in text
     assert "ops-readiness" in text
     assert "if python -m daddy_reviews.cli ops-readiness" in text
     assert "Unsafe: local evidence authorized production" in text

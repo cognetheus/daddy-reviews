@@ -339,6 +339,29 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - Added real subprocess flood/deadline and secret-inheritance regressions in `tests/test_bounded_exec.py`, plus a named matrix CI gate.
 - These controls are **not** arbitrary untrusted-code sandboxing or proof of test correctness; they harden a fixed suite in an unprivileged GitHub-hosted job. See [R8.05c reproducible dependencies and runners](R8_REPRODUCIBLE_DEPENDENCIES_AND_RUNNERS.md).
 
-**Remaining R8.05 gates:** **administrator must actually protect `main`**, live privileged read-only policy verification, Python hash-locked wheels, pinned runtime/JDK and build environment provenance, broader compiler-adapter resource caps, reliability/latency SLOs, failover/failure-injection experiments and protected operator-controlled release approvals. R8.06 remains a controlled human-reviewed PR pilot.
+### R8.05d.01 — Real-source performance and allocation budgets (implemented)
+- `ops-preflight` measures repeated real `review_patch` operations over a bounded local Git patch. Reports p95 latency, per-sample elapsed times, changed-file and findings counts and Python-traced peak allocations, without exporting source text or model findings.
+- Default candidate budgets: 60 seconds p95, 256 MiB of *traced Python allocations* and a maximum 512 KiB patch. The benchmark is **in-process** and its budgets are measured after execution; they do not represent hard CPU, RSS or wall-time enforcement.
+
+### R8.05d.02 — Fault injection and deterministic recovery (implemented)
+- `ops_runtime.probe_supervisor_faults()` executes five fixed, trusted process scenarios: healthy response, nonzero exit, stdout flood, hard deadline, and a transient read-only error followed by bounded recovery.
+- `ops_recovery.retry_classified_read_only()` supports only explicitly identified read-only operations, up to three attempts, exponential capped backoff and stop-on-permanent-error. It cannot make an arbitrary user callback safe or independently interrupt a long-running adapter.
+- Existing `bounded_exec` terminates the process group on output overflow/timeout. Automated tests verify error paths and ensure no raw subprocess output or sensitive exception messages escape into operational reports.
+
+### R8.05d.03 — Closed-schema operational telemetry and candidate alerts (implemented)
+- `ops_telemetry` accepts only operation type, categorical outcome, latency and traced allocation size; extra properties and unbounded values are rejected. Outputs failure counts/rates, sample p95, candidate alert codes and workload coverage.
+- `ops-telemetry` ingests a bounded, explicitly selected operator JSON batch; no public source, credentials, log messages, URLs, file paths or free-form text are included.
+- GitHub Actions run failures are the current **operator notification mechanism**. No always-on metrics server, external webhook/PagerDuty integration or production SLO proof is claimed.
+
+### R8.05d.04 — Local supply-chain and privileged-workflow audit (implemented)
+- `ops-security` scans owner-only input files and the checked-out CI workflow sources, confirming CODEOWNERS, constrained Python dependencies, npm integrity locking, exact .NET SDK and all-pinned GitHub Actions with read-only token policy and isolated OIDC signer steps.
+- This is a bounded **static** local preflight. It does not establish the identity of upstream actions, current live branch protection or absence of runtime secrets. The separate authenticated `branch-governance-audit` remains required.
+
+### R8.05d.05 — Operational acceptance, real CI and incident controls (implemented infrastructure)
+- `ops-preflight` composes real review benchmarks, all five failure-injection probes, static security checks and batch telemetry into an owner-auditable source-SHA-linked JSON report. A dedicated `Operational Readiness Preview` workflow validates actual commits using Python 3.12 and exports a **seven-day source-free summary**.
+- `ops-readiness` re-evaluates bounded, untrusted operator evidence. Even when all local checks pass it returns exit **2** and **never** grants model promotion, production readiness, PR posting, approvals or merge authority. The gate explicitly requires externally verified GitHub protection, independent genuine human defect evidence, complete supply-chain provenance and an authorized pilot.
+- CI runs dedicated adversarial and actual process-failure tests across Python 3.10/3.12/3.13. See [R8.05d operational runbook and acceptance](R8_OPERATIONAL_READINESS.md).
+
+**R8.05 implementation is complete as an *advisory hardening toolkit*, not an approved production release.** External blockers remain: GitHub `main` branch protection must be administrator-configured and independently verified; genuine human review of real defects must happen; full per-platform hashes/runtime provenance need verification; an authorized monitored production pilot is R8.06. Security controls and the CI preview do **not** prove reviewer accuracy or grant release permissions.
 
 **No model-quality approval, production accuracy claims, autonomous PR approval, publication or merge blocking until actual independent evidence and separate release authority exist.**
