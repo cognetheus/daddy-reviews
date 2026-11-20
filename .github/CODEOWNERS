@@ -10,3 +10,4 @@
 /src/daddy_reviews/test_execution.py @cognetheus
 /pyproject.toml @cognetheus
 /src/daddy_reviews/ops_*.py @cognetheus
+/src/daddy_reviews/pr_pilot*.py @cognetheus

@@ -362,6 +362,27 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - `ops-readiness` re-evaluates bounded, untrusted operator evidence. Even when all local checks pass it returns exit **2** and **never** grants model promotion, production readiness, PR posting, approvals or merge authority. The gate explicitly requires externally verified GitHub protection, independent genuine human defect evidence, complete supply-chain provenance and an authorized pilot.
 - CI runs dedicated adversarial and actual process-failure tests across Python 3.10/3.12/3.13. See [R8.05d operational runbook and acceptance](R8_OPERATIONAL_READINESS.md).
 
+### R8.06a — Live source-pinned GitHub PR intake (implemented, real PR exercise pending)
+
+- Added `pilot-pr`: obtains the exact open PR metadata, its bounded per-file patches and its metadata again via SHA-256-pinned `gh` executable using only authenticated **GET** requests; rejects a moved PR head/base, wrong repository ID, unbounded pagination, binary/missing or inconsistent file patches, unsafe paths and mismatched local checkout SHA.
+- Reviews only the **exact PR HEAD checkout** using trusted installed base-branch code; no PR source is installed/executed, no model is invoked and no GitHub writes occur. Produces a source-free structured candidate summary and optionally a **0600 owner-only, non-overwriting private report** that is never uploaded.
+- No PR comment, approval, changes-requested review, merge or release authorization is possible from the pilot command.
+
+### R8.06b — Operational cohort tracking and stop/rollback candidates (implemented)
+
+- Added `pilot-cohort`: consumes only explicitly selected, closed-schema PR summary JSON; rejects duplicate PR identities, forged promotion/verification flags, unexpected data and oversized batches. Calculates candidate finding counts, p95 review latency and manual halt triggers.
+- Default advisory cohort floor is five **distinct** PRs, review p95 at most 60 seconds and a maximum 20 unverified candidates per PR. **Offline submitted summaries are untrusted** and cannot prove live GitHub provenance, false-positive/false-negative rates or human truth, even if the local candidate metric passes.
+- Any breach recommends **halt or keep shadow-only**. No automatic rollback, comment, or production decision is made.
+
+### R8.06c — Trusted-tool/untrusted-source read-only GitHub Actions pilot (implemented)
+
+- New `.github/workflows/advisory-pr-pilot.yml` triggers only on genuine `pull_request` events, not elevated PR-target events. It checks out the **pinned base** reviewer code separately from the untrusted PR HEAD source, installs exclusively from the trusted base, uses read-only `contents` and `pull-requests` permissions and no OIDC/deployment secrets.
+- Pilot outputs are split into **private local finding evidence** and a seven-day source-free public summary artifact; the workflow uploads only the latter. No write API method exists in the integration.
+- CI tests adversarial source/API race conditions, tampered per-file patch counts, stale/malformed GH data, duplicate cohort rows, stop conditions, and permissions/publishing regressions.
+- As of the start of R8.06, the repository had **zero open PRs**; no empirical live PR pass is claimed until the actual workflow completes on an open PR.
+
+**R8.06 release status:** Advisory pilot infrastructure exists, **not** production v2.0 approval. External blockers: administrator-enforced and authenticated branch protection (last checked `protected:false`), real independent human defect study and resolution of label uncertainty, per-platform build provenance, enough monitored live PRs to establish representative latency and accuracy, and explicit release-owner authorization. Autonomous commenting, review approvals, requests for changes, merge blocking and merge actions remain disabled. See [R8.06 controlled PR pilot](R8_CONTROLLED_PR_PILOT.md).
+
 **R8.05 implementation is complete as an *advisory hardening toolkit*, not an approved production release.** External blockers remain: GitHub `main` branch protection must be administrator-configured and independently verified; genuine human review of real defects must happen; full per-platform hashes/runtime provenance need verification; an authorized monitored production pilot is R8.06. Security controls and the CI preview do **not** prove reviewer accuracy or grant release permissions.
 
 **No model-quality approval, production accuracy claims, autonomous PR approval, publication or merge blocking until actual independent evidence and separate release authority exist.**

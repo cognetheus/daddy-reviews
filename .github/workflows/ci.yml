@@ -81,6 +81,8 @@ jobs:
         run: pytest -q tests/test_investigation.py
       - name: Require specialist agent tool-call harness and citation regressions
         run: pytest -q tests/test_investigative_agents.py
+      - name: Enforce read-only GitHub PR intake, cohort stop controls and no-write workflow
+        run: pytest -q tests/test_pr_pilot.py tests/test_pr_pilot_cohort.py tests/test_pr_pilot_workflow_policy.py
       - name: Require production reliability budgets, failure injection and no-release operational gates
         run: pytest -q tests/test_ops_runtime.py tests/test_ops_recovery.py tests/test_ops_telemetry.py tests/test_ops_security.py tests/test_ops_readiness.py tests/test_ops_workflow_policy.py
       - name: Require reproducible compiler and verification dependency inputs

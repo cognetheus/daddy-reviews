@@ -118,6 +118,14 @@ daddy-reviews ops-readiness --root . --ops-evidence-file ops-summary.json
 
 The final `ops-readiness` command **always exits nonzero**, even if local probes pass, because genuine human defect validation, GitHub branch protection and authorized pilot evidence still require external verification. An independent GitHub operational-preview workflow runs real-source checks and exports only bounded, source-free local summary metadata; CI and adversarial tests protect the no-release boundary. See [R8.05d operations runbook](docs/R8_OPERATIONAL_READINESS.md).
 
+## R8.06 — Controlled read-only GitHub PR pilot
+
+`pilot-pr` uses authenticated, **GET-only** GitHub API calls and an exact pinned PR HEAD checkout. It refuses truncated or unsafe patches, PR changes during analysis, and mismatched source commits. The read-only `Advisory PR Pilot` GitHub Action uses trusted base-revision tooling to inspect an isolated untrusted PR checkout without executing PR packages. It uploads **only a source-free seven-day summary**; private findings remain runner-local and no PR comment, review approval or merge is issued.
+
+`pilot-cohort` summarizes up to 50 explicit source-free PR reports with distinct-PR checks, review p95 and stop/rollback trigger candidates. An operator-supplied cohort is **not external proof** of reviewer accuracy or independent human outcomes. The cohort is permanently advisory-only.
+
+See [R8.06 PR pilot setup, controls and operator runbook](docs/R8_CONTROLLED_PR_PILOT.md). Production v2.0 remains blocked by unprotected `main`, missing genuinely adjudicated human accuracy evidence, complete build provenance and human release authorization.
+
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
 
 **New:** run recorded *model decisions* through **real permissioned R8.01 tools** in isolated source fixtures, then score the R8.02 investigation harness for true positives, false positives, missed issues, incomplete sessions, and tool efficiency. Results include reproducible trace hashes and source-verified citation checks. A paired comparator flags deteriorating precision/recall or newly failed investigations.
