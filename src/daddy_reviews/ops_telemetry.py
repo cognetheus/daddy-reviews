@@ -21,7 +21,8 @@ class OperationalError(ValueError):
 
 def make_event(operation: str, outcome: str, elapsed_ms: int,
                peak_python_kib: int = 0) -> dict:
-    if (operation not in OPERATIONS or outcome not in OUTCOMES
+    if (not isinstance(operation, str) or operation not in OPERATIONS
+            or not isinstance(outcome, str) or outcome not in OUTCOMES
             or type(elapsed_ms) is not int or not 0 <= elapsed_ms <= 120_000
             or type(peak_python_kib) is not int
             or not 0 <= peak_python_kib <= 1_048_576):
