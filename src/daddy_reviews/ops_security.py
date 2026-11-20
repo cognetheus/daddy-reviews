@@ -88,8 +88,9 @@ def static_security_preflight(root: Path) -> dict:
                                   content, re.MULTILINE))
                 or "persist-credentials: true" in content):
             checks["checkout_credentials_not_persisted"] = False
-        if not re.search(r"^permissions:\n\s+contents:\s+read\b",
-                         content, re.MULTILINE):
+        if (not re.search(r"^permissions:\n(?:  [a-z-]+: (?:read|none)\n)+",
+                          content, re.MULTILINE)
+                or not re.search(r"^  contents: read$", content, re.MULTILINE)):
             checks["explicit_workflow_permissions"] = False
         # Split top-level job blocks only; the signing job must not execute
         # a shell or load source code once it has OIDC permission.
