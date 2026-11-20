@@ -60,11 +60,12 @@ def test_oversized_or_empty_or_malformed_patch_fails_before_source_review(tmp_pa
 def test_real_fault_injection_covers_healthy_nonzero_flood_and_deadline(tmp_path):
     record = probe_supervisor_faults(tmp_path)
     assert record["status"] == "failure_controls_verified"
-    assert record["scenario_count"] == 4
+    assert record["scenario_count"] == 5
     assert {x["scenario"] for x in record["scenarios"]} == {
-        "healthy", "nonzero", "output_flood", "deadline"}
+        "healthy", "nonzero", "output_flood", "deadline",
+        "transient_read_only_recovery"}
     assert all(x["expected_failure_detected"] for x in record["scenarios"])
-    assert len(record["events"]) == 4
+    assert len(record["events"]) == 5
     assert all(x["outcome"] == "ok" for x in record["events"])
     assert record["arbitrary_untrusted_commands_executed"] is False
     assert record["network_isolation_proven"] is False
