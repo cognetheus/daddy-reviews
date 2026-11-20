@@ -36,7 +36,7 @@ from .context_cache import ContextCacheError
 from .investigation import InvestigationError, InvestigationSession, ToolRequest, TOOLS
 from .investigative_agents import investigate_with_specialists, local_investigation_provider
 from .investigation_eval import ReplayError, read_replay_dataset, read_replay_report, evaluate_replay, compare_replay
-from .operator_artifacts import load_operator_inputs, read_operator_json, MAX_TRUST_BYTES
+from .operator_artifacts import load_operator_inputs, read_operator_json, read_operator_patch, MAX_TRUST_BYTES
 from .ci_runner_receipts import verify_runner_receipts
 from .human_quality import HumanQualityError, read_resolution_dataset, evaluate_human_resolutions, compare_human_resolutions
 from .github_attestation import verify_github_attestation_offline
@@ -49,6 +49,9 @@ from .real_repository_frame_quality import audit_opportunity_labels
 from .study_protocol import create_study_plan, write_study_plan, audit_preregistered_study
 from .study_github_chronology import verify_live_study_anchors, reviewer_receipt_sha256, create_study_github_enrollment, write_study_enrollment
 from .release_governance import verify_live_branch_governance
+from .ops_telemetry import OperationalError, summarize_events
+from .ops_security import static_security_preflight
+from .ops_readiness import run_operational_preflight, assess_operational_evidence
 from .operator_artifacts import read_test_logs
 from .test_execution import verify_execution_with_github_attestation
 from .human_resolution import adjudicate_human_verification
@@ -57,7 +60,7 @@ from .human_attestation import HumanVerificationError, sha256_json
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit','study-anchor-verify','study-review-receipt','study-enrollment','branch-governance-audit'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit','study-anchor-verify','study-review-receipt','study-enrollment','branch-governance-audit','ops-preflight','ops-readiness','ops-security','ops-telemetry'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -186,6 +189,14 @@ def main(argv=None):
                         help='New owner-only offline GitHub enrollment file, no overwrite')
     parser.add_argument('--governance-branch',default='main',
                         help='Explicit protected release branch; main by default')
+    parser.add_argument('--ops-samples',type=int,default=2,
+                        help='Local Git review benchmark iterations (1-6)')
+    parser.add_argument('--ops-p95-ms',type=int,default=60000,
+                        help='Advisory review p95 latency budget, milliseconds')
+    parser.add_argument('--ops-peak-kib',type=int,default=262144,
+                        help='Advisory Python allocation peak budget, KiB (not RSS)')
+    parser.add_argument('--ops-evidence-file',
+                        help='Explicit, bounded self-reported operational JSON input')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -206,7 +217,40 @@ def main(argv=None):
         parser.error('--check-live-github-jobs requires attested-test-verify')
     if args.require_live_study_anchors and args.command != 'study-audit':
         parser.error('--require-live-study-anchors requires study-audit')
-    if args.command=='branch-governance-audit':
+    if args.command=='ops-preflight':
+        try:
+            patch=(read_operator_patch(Path(args.diff_file))
+                   if args.diff_file else git_diff(root,args.base,args.head))
+            data=run_operational_preflight(
+                root,patch,samples=args.ops_samples,
+                latency_budget_ms=args.ops_p95_ms,
+                peak_budget_kib=args.ops_peak_kib)
+        except (OperationalError,DiffError,HumanVerificationError,
+                OSError,ValueError,UnicodeError) as exc:
+            parser.error(str(exc))
+    elif args.command=='ops-readiness':
+        if not args.ops_evidence_file:
+            parser.error('ops-readiness requires explicit --ops-evidence-file')
+        try:
+            evidence=read_operator_json(Path(args.ops_evidence_file),
+                                        max_bytes=256_000)
+            data=assess_operational_evidence(evidence)
+        except (OperationalError,HumanVerificationError,OSError,
+                ValueError,TypeError) as exc:
+            parser.error(str(exc))
+    elif args.command=='ops-security':
+        data=static_security_preflight(root)
+    elif args.command=='ops-telemetry':
+        if not args.ops_evidence_file:
+            parser.error('ops-telemetry requires explicit --ops-evidence-file')
+        try:
+            events=read_operator_json(Path(args.ops_evidence_file),
+                                      max_bytes=64_000)
+            data=summarize_events(events,minimum=5,p95_budget_ms=args.ops_p95_ms)
+        except (OperationalError,HumanVerificationError,OSError,
+                ValueError,TypeError) as exc:
+            parser.error(str(exc))
+    elif args.command=='branch-governance-audit':
         if not all((args.attestation_repo,args.attestation_repo_id,args.attestation_commit,
                     args.gh_binary,args.gh_binary_sha256)):
             parser.error('branch-governance-audit requires --attestation-repo, --attestation-repo-id, --attestation-commit, --gh-binary, --gh-binary-sha256 and GH_TOKEN')
@@ -913,6 +957,14 @@ def main(argv=None):
     if args.command=='study-audit' and data['status'] == 'pending_or_disputed_human_adjudication':
         raise SystemExit(2)
     if args.command=='branch-governance-audit' and data['status'] != 'authenticated_branch_policy_verified':
+        raise SystemExit(2)
+    if args.command=='ops-preflight' and data['readiness']['status'] != 'local_operational_candidate':
+        raise SystemExit(2)
+    if args.command=='ops-readiness':
+        raise SystemExit(2)  # Not a production release authorization surface.
+    if args.command=='ops-security' and data['status'] != 'local_static_security_checks_passed':
+        raise SystemExit(2)
+    if args.command=='ops-telemetry' and data['status'] != 'local_candidate_within_budget':
         raise SystemExit(2)
     if args.command=='attested-test-verify' and data['status'] != 'supervisor_recorded_passed_origin_authenticated':
         raise SystemExit(2)
