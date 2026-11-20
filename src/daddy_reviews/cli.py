@@ -49,6 +49,8 @@ from .real_repository_frame_quality import audit_opportunity_labels
 from .study_protocol import create_study_plan, write_study_plan, audit_preregistered_study
 from .study_github_chronology import verify_live_study_anchors, reviewer_receipt_sha256, create_study_github_enrollment, write_study_enrollment
 from .release_governance import verify_live_branch_governance
+from .pr_pilot import PilotError, capture_live_pr, write_private_pilot_report
+from .pr_pilot_cohort import PilotCohortError, observe_pilot_cohort
 from .ops_telemetry import OperationalError, summarize_events
 from .ops_security import static_security_preflight
 from .ops_readiness import run_operational_preflight, assess_operational_evidence
@@ -60,7 +62,7 @@ from .human_attestation import HumanVerificationError, sha256_json
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='daddy-reviews')
-    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit','study-anchor-verify','study-review-receipt','study-enrollment','branch-governance-audit','ops-preflight','ops-readiness','ops-security','ops-telemetry'])
+    parser.add_argument('command',choices=['plan','inventory','audit','review','stack','contracts','verify','evaluate','graph','capabilities','graph-diff','symbol-impact','standards','adjudicate','ai-review','pr-publish','rerun','quality-eval','telemetry','quality-compare','snapshot','snapshot-verify','ts-semantic','py-semantic','java-semantic','cs-semantic','cross-layer','context','investigate','ai-investigate','investigation-replay','investigation-compare','human-verify','human-resolution-eval','human-resolution-compare','github-attestation-verify','attested-test-verify','github-jobs-verify','human-label-audit','real-sample','real-label-audit','opportunity-sample','opportunity-audit','study-plan','study-audit','study-anchor-verify','study-review-receipt','study-enrollment','branch-governance-audit','ops-preflight','ops-readiness','ops-security','ops-telemetry','pilot-pr','pilot-cohort'])
     parser.add_argument('--root',default='.')
     parser.add_argument('--repo',help='GitHub owner/name for PR publication')
     parser.add_argument('--snapshot-file',help='Prior source manifest for read-only freshness verification')
@@ -197,6 +199,16 @@ def main(argv=None):
                         help='Advisory Python allocation peak budget, KiB (not RSS)')
     parser.add_argument('--ops-evidence-file',
                         help='Explicit, bounded self-reported operational JSON input')
+    parser.add_argument('--pilot-private-output',
+                        help='Exclusive owner-only local full PR evidence file (never uploaded)')
+    parser.add_argument('--pilot-summaries-file',
+                        help='Explicit bounded list of source-free PR pilot summaries')
+    parser.add_argument('--pilot-min-prs',type=int,default=5,
+                        help='Minimum distinct PR observations for advisory pilot metrics')
+    parser.add_argument('--pilot-p95-ms',type=int,default=60000,
+                        help='Pilot candidate p95 latency alert budget')
+    parser.add_argument('--pilot-max-findings',type=int,default=20,
+                        help='Maximum unverified candidate findings in a PR before review pause')
     args=parser.parse_args(argv)
     root=Path(args.root).resolve()
     if not root.is_dir():
@@ -217,7 +229,40 @@ def main(argv=None):
         parser.error('--check-live-github-jobs requires attested-test-verify')
     if args.require_live_study_anchors and args.command != 'study-audit':
         parser.error('--require-live-study-anchors requires study-audit')
-    if args.command=='ops-preflight':
+    if args.command=='pilot-pr':
+        if not all((args.attestation_repo,args.attestation_repo_id,
+                    args.pr,args.expected_head_sha,
+                    args.gh_binary,args.gh_binary_sha256)):
+            parser.error('pilot-pr requires pinned GitHub repo/id, PR number, --expected-head-sha and SHA256-verified gh executable')
+        try:
+            result=capture_live_pr(
+                root=root,repository=args.attestation_repo,
+                repository_id=args.attestation_repo_id,
+                number=args.pr,expected_head=args.expected_head_sha,
+                token=os.environ.get('GH_TOKEN'),
+                gh_binary=Path(args.gh_binary),
+                gh_binary_sha256=args.gh_binary_sha256)
+            data=result['summary']
+            if args.pilot_private_output:
+                data={**data,**write_private_pilot_report(
+                    Path(args.pilot_private_output),result['private'])}
+        except (PilotError,OperationalError,HumanVerificationError,
+                OSError,ValueError,TypeError) as exc:
+            parser.error(str(exc))
+    elif args.command=='pilot-cohort':
+        if not args.pilot_summaries_file:
+            parser.error('pilot-cohort requires explicit --pilot-summaries-file')
+        try:
+            observations=read_operator_json(
+                Path(args.pilot_summaries_file),max_bytes=256000)
+            data=observe_pilot_cohort(
+                observations,minimum_prs=args.pilot_min_prs,
+                p95_budget_ms=args.pilot_p95_ms,
+                max_candidates_per_pr=args.pilot_max_findings)
+        except (PilotCohortError,HumanVerificationError,
+                OSError,ValueError,TypeError) as exc:
+            parser.error(str(exc))
+    elif args.command=='ops-preflight':
         try:
             patch=(read_operator_patch(Path(args.diff_file))
                    if args.diff_file else git_diff(root,args.base,args.head))
@@ -962,6 +1007,8 @@ def main(argv=None):
         raise SystemExit(2)
     if args.command=='ops-readiness':
         raise SystemExit(2)  # Not a production release authorization surface.
+    if args.command=='pilot-cohort' and data['status'] != 'local_pilot_candidate':
+        raise SystemExit(2)
     if args.command=='ops-security' and data['status'] != 'local_static_security_checks_passed':
         raise SystemExit(2)
     if args.command=='ops-telemetry' and data['status'] != 'local_candidate_within_budget':
