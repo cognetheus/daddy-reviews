@@ -1,0 +1,1 @@
+"""Nonmerge R8.06 advisory-only PR integration fixture.\n\nThis intentionally simple source exercises a real GitHub PR diff without\nclaiming that a synthetic change establishes review accuracy.\n"""\n\n\ndef shadow_pilot_double(value: int) -> int:\n    return value * 2\n
