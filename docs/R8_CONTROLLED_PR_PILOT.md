@@ -91,6 +91,19 @@ The workflow publishes only `daddy-pr-advisory-summary` for seven days, containi
 
 **No open PR at implementation start** means integration tests were initially mocked, with real Git source/commit checks in other workflows. Do not infer a successfully exercised real PR from a green unit test. The actual PR workflow run must appear on a genuine pull request.
 
+## Confirmed live end-to-end integration — November 20, 2026
+
+The actual workflow was exercised on [PR #1 — R8.06 SHADOW PILOT, DO NOT MERGE](https://github.com/cognetheus/daddy-reviews/pull/1), a harmless new Python source file in a separate branch. The first temporary fixture version contained literal `\\n` sequences (invalid Python), which correctly made the graph-cache CI fail closed instead of claiming an incomplete index was a full hit. The fixture was corrected to real newlines in PR head `cac5fddf6911edbd02c2003b3e2cffc88e7d288c`.
+
+- [Actual read-only PR analysis](https://github.com/cognetheus/daddy-reviews/actions/runs/44776590365): **completed / success** on corrected PR head.
+- [Initial real PR analysis](https://github.com/cognetheus/daddy-reviews/actions/runs/44775887578): also passed on the original fixture, confirming the distinct advisory path; the CI graph-cache failure was separate and fixed in the PR fixture.
+- The Actions run uploaded only `daddy-pr-advisory-summary` as a bounded artifact; private findings were not uploaded.
+- Authenticated GitHub PR API reported **zero pull-request reviews, zero inline comments and zero issue comments; the PR remains open and unmerged** at verification.
+- The user-facing PR is deliberately **not for merging**. Closing it later is a separate human decision.
+- This is exactly **one** real PR. It verifies workflow wiring and source protections, **not** the five-PR cohort floor, reviewer sensitivity/precision or independent human defect truth.
+
+Until five distinct real source PRs and genuine adjudications exist, `pilot-cohort` cannot establish a statistically meaningful reviewer-quality claim, and branch protection must still be configured by an administrator.
+
 ## Operator acceptance and manual rollback
 
 | Gate | Candidate target | Enforcement |

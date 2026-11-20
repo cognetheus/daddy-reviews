@@ -381,6 +381,12 @@ See [source-backed design and tradeoffs](CLOUDFLARE_REVIEW_RND.md).
 - CI tests adversarial source/API race conditions, tampered per-file patch counts, stale/malformed GH data, duplicate cohort rows, stop conditions, and permissions/publishing regressions.
 - As of the start of R8.06, the repository had **zero open PRs**; no empirical live PR pass is claimed until the actual workflow completes on an open PR.
 
+### R8.06d — Actual PR shadow-run integration and incident follow-up (validated)
+
+- Opened [PR #1 — DO NOT MERGE](https://github.com/cognetheus/daddy-reviews/pull/1) on a separate branch to validate the real GitHub `pull_request` workflow. The [corrected head's advisory analysis](https://github.com/cognetheus/daddy-reviews/actions/runs/44776590365) passed and uploaded only its public source-free artifact. No GitHub PR comments, reviews, approvals or merges were produced.
+- An initially malformed one-line fixture exposed a real fail-closed graph-cache CI condition; the fixture was corrected and the test PR now contains valid multiline Python. This is engineering resilience evidence, not a scored defect discovery.
+- **Only one genuine PR has been exercised.** The five-distinct-PR cohort, actual external human adjudication, accurate defect metrics and branch protection remain open.
+
 **R8.06 release status:** Advisory pilot infrastructure exists, **not** production v2.0 approval. External blockers: administrator-enforced and authenticated branch protection (last checked `protected:false`), real independent human defect study and resolution of label uncertainty, per-platform build provenance, enough monitored live PRs to establish representative latency and accuracy, and explicit release-owner authorization. Autonomous commenting, review approvals, requests for changes, merge blocking and merge actions remain disabled. See [R8.06 controlled PR pilot](R8_CONTROLLED_PR_PILOT.md).
 
 **R8.05 implementation is complete as an *advisory hardening toolkit*, not an approved production release.** External blockers remain: GitHub `main` branch protection must be administrator-configured and independently verified; genuine human review of real defects must happen; full per-platform hashes/runtime provenance need verification; an authorized monitored production pilot is R8.06. Security controls and the CI preview do **not** prove reviewer accuracy or grant release permissions.

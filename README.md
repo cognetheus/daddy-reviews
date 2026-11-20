@@ -124,6 +124,8 @@ The final `ops-readiness` command **always exits nonzero**, even if local probes
 
 `pilot-cohort` summarizes up to 50 explicit source-free PR reports with distinct-PR checks, review p95 and stop/rollback trigger candidates. An operator-supplied cohort is **not external proof** of reviewer accuracy or independent human outcomes. The cohort is permanently advisory-only.
 
+The real shadow integration has now run successfully on [PR #1 — DO NOT MERGE](https://github.com/cognetheus/daddy-reviews/pull/1); [the corrected-head pilot workflow](https://github.com/cognetheus/daddy-reviews/actions/runs/44776590365) succeeded with no PR comments, reviews, or merges. This is one source-backed functional pilot, not a representative accuracy evaluation.
+
 See [R8.06 PR pilot setup, controls and operator runbook](docs/R8_CONTROLLED_PR_PILOT.md). Production v2.0 remains blocked by unprotected `main`, missing genuinely adjudicated human accuracy evidence, complete build provenance and human release authorization.
 
 ## R8.03 — Deterministic specialist replay & evaluation (v1.16.0)
