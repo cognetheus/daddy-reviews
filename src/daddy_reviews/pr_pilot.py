@@ -14,6 +14,7 @@ import re
 import shlex
 import subprocess
 import tempfile
+from time import perf_counter_ns
 
 from .bounded_exec import run_bounded
 from .diff import DiffError, parse_diff
@@ -229,7 +230,11 @@ def capture_live_pr(*, root: Path, repository: str, repository_id: int,
     if pinned_local_head(root) != expected_head:
         raise PilotError("Local source HEAD moved during PR intake")
     patch, added, removed = _patch_from_files(files)
+    started = perf_counter_ns()
     report = review_patch(root, patch)
+    review_elapsed_ms = max(0, round((perf_counter_ns() - started) / 1_000_000))
+    if review_elapsed_ms > 120000:
+        raise PilotError("PR review exceeded advisory two-minute processing budget")
     patch_sha = hashlib.sha256(patch.encode("utf-8")).hexdigest()
     # No free-form finding, source, filepath or comment is shared publicly.
     summary = {
@@ -241,6 +246,7 @@ def capture_live_pr(*, root: Path, repository: str, repository_id: int,
         "changed_file_count": len(files),
         "added_lines": added, "deleted_lines": removed,
         "candidate_findings": len(report.get("findings", [])),
+        "review_elapsed_ms": review_elapsed_ms,
         "verified_defects": 0,  # no independently adjudicated labels were read
         "coverage": "bounded_complete_textual_patch",
         "github_read_only": True, "model_used": False,
