@@ -23,6 +23,7 @@ from .human_attestation import HumanVerificationError
 from .ops_readiness import pinned_local_head
 from .ops_telemetry import OperationalError
 from .review import review_patch
+from .real_repository_intake import _output_path
 
 FORMAT = "daddy-reviews-pr-pilot-summary-v1"
 PRIVATE_FORMAT = "daddy-reviews-pr-pilot-private-report-v1"
@@ -264,3 +265,34 @@ def capture_live_pr(*, root: Path, repository: str, repository_id: int,
         "merge_action": "none",
     }
     return {"summary": summary, "private": private}
+
+
+def write_private_pilot_report(path: Path, report: dict) -> dict:
+    """Save full PR evidence locally for a human, NEVER as a CI artifact."""
+    if (not isinstance(report, dict)
+            or report.get("format") != PRIVATE_FORMAT
+            or not isinstance(report.get("review_packet"), dict)
+            or not isinstance(report.get("summary"), dict)):
+        raise PilotError("Invalid private PR review payload")
+    destination = _output_path(path)
+    blob = (json.dumps(report, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+    if len(blob) > 2_000_000:
+        raise PilotError("Private PR report exceeds local storage budget")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    created = False
+    try:
+        fd = os.open(destination, flags, 0o600)
+        created = True
+        with os.fdopen(fd, "wb") as out:
+            out.write(blob)
+            out.flush()
+            os.fsync(out.fileno())
+    except OSError as exc:
+        if created:
+            destination.unlink(missing_ok=True)
+        raise PilotError("Failed to exclusively save private PR review") from exc
+    return {
+        "private_evidence_saved": True,
+        "private_evidence_sha256": hashlib.sha256(blob).hexdigest(),
+        "private_evidence_not_published": True,
+    }
