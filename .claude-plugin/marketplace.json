@@ -1,0 +1,13 @@
+{
+  "name": "daddy-reviews-marketplace",
+  "owner": {
+    "name": "cognetheus"
+  },
+  "plugins": [
+    {
+      "name": "daddy-reviews",
+      "source": "./",
+      "description": "Evidence-first engineering review plugin with local deterministic analysis."
+    }
+  ]
+}

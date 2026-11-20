@@ -1,0 +1,18 @@
+{
+  "name": "daddy-reviews",
+  "displayName": "Daddy Reviews",
+  "version": "0.1.0",
+  "description": "Evidence-first engineering reviews using a bundled read-only local diff engine and specialist review skills.",
+  "author": {
+    "name": "cognetheus"
+  },
+  "homepage": "https://github.com/cognetheus/daddy-reviews",
+  "repository": "https://github.com/cognetheus/daddy-reviews",
+  "keywords": [
+    "code-review",
+    "architecture",
+    "security",
+    "dependency-graph",
+    "claude-code"
+  ]
+}
