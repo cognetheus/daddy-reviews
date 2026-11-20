@@ -40,6 +40,38 @@ def test_5_distinct_observed_prs_are_local_candidate_not_real_release():
     assert result["github_comments_posted"]==0 and result["merge_action"]=="none"
 
 
+def test_workflow_summaries_with_owner_only_private_digest_are_cohort_compatible():
+    events=[sample(i) for i in range(1,6)]
+    for event in events:
+        event.update({
+            "private_evidence_saved":True,
+            "private_evidence_sha256":"e"*64,
+            "private_evidence_not_published":True,
+        })
+    cohort=observe_pilot_cohort(events)
+    assert cohort["status"]=="local_pilot_candidate"
+    assert cohort["distinct_pr_observations"]==5
+    assert "private_evidence_sha256" not in str(cohort)
+
+
+@pytest.mark.parametrize("mutate",[
+    lambda d: d.update(private_evidence_sha256="bad"),
+    lambda d: d.update(private_evidence_saved=False),
+    lambda d: d.update(private_evidence_not_published=False),
+    lambda d: d.pop("private_evidence_sha256"),
+])
+def test_malformed_or_partial_private_receipt_never_passes_cohort(mutate):
+    record=sample()
+    record.update({
+        "private_evidence_saved":True,
+        "private_evidence_sha256":"d"*64,
+        "private_evidence_not_published":True,
+    })
+    mutate(record)
+    with pytest.raises(PilotCohortError):
+        observe_pilot_cohort([record])
+
+
 def test_no_open_PR_evidence_is_blocked_without_synthetic_metrics():
     result=observe_pilot_cohort([])
     assert result["status"]=="pilot_stop_or_insufficient_evidence"
